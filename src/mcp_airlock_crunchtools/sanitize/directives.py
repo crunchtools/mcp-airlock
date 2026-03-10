@@ -15,7 +15,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-# Patterns that match anywhere within a line (case-insensitive)
 _INLINE_PATTERNS = [
     re.compile(p, re.IGNORECASE)
     for p in [
@@ -30,7 +29,6 @@ _INLINE_PATTERNS = [
     ]
 ]
 
-# Patterns that match at the start of a line (case-insensitive)
 _PREFIX_PATTERNS = re.compile(
     r"^\s*(?:IMPORTANT|INSTRUCTION|OVERRIDE|ADMIN)\s*:",
     re.IGNORECASE,

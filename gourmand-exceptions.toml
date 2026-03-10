@@ -84,3 +84,15 @@ check = "primitive_obsession"
 path = "src/mcp_airlock_crunchtools/sanitize/encoded.py"
 pattern = "500"
 justification = "500 is the literal value in the MAX_BASE64_DECODE_LENGTH constant definition — the literal must exist somewhere"
+
+[[exceptions]]
+check = "summary_litter"
+path = "CLAUDE.md"
+pattern = "CLAUDE.md"
+justification = "Standard Claude Code project configuration file — provides codebase context and development instructions to the AI assistant"
+
+[[exceptions]]
+check = "summary_litter"
+path = "tests/test-injection.md"
+pattern = "test-injection.md"
+justification = "Test fixture containing sample prompt injection payloads for integration testing of the sanitization pipeline"

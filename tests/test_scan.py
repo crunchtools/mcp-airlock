@@ -114,7 +114,6 @@ class TestDeepScanVsStandardScan:
 
             result = await deep_quarantine_scan(path="/tmp/test.txt")
 
-            # Deep scan: Q-Agent gets raw content
             detect_content = mock_detect.call_args[0][0]
             assert detect_content == raw
             assert result["scan_mode"] == "deep"
@@ -156,7 +155,6 @@ class TestDeepScanVsStandardScan:
 
             result = await quarantine_scan(path="/tmp/test.txt")
 
-            # Standard scan: Q-Agent gets sanitized content
             detect_content = mock_detect.call_args[0][0]
             assert detect_content == "SANITIZED CONTENT"
             assert result["scan_mode"] == "standard"

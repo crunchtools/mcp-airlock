@@ -211,7 +211,6 @@ async def quarantine_extract(content: str, prompt: str) -> dict[str, Any]:
         if extracted:
             result = sanitize_text(extracted)
             parsed["extracted_text"] = result.content[:MAX_EXTRACTED_TEXT]
-            # Dual-model verification: classify Q-Agent output
             from .classifier import classify
 
             classification = classify(parsed["extracted_text"])

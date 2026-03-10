@@ -18,7 +18,6 @@ from ..config import get_config
 
 logger = logging.getLogger(__name__)
 
-# Lazy-loaded singleton state
 _session: Any | None = None
 _tokenizer: Any = None
 _loaded = False
@@ -34,12 +33,14 @@ class ClassifierResult:
     latency_ms: float  # inference time
 
 
-def _load_model() -> bool:
-    """Lazy-load the ONNX model and tokenizer. Returns True if successful."""
+def is_classifier_available() -> bool:
+    """Check if the ONNX model is loaded and ready. Lazy-loads on first call."""
     global _session, _tokenizer, _loaded, _load_attempted
 
+    if _loaded:
+        return True
     if _load_attempted:
-        return _loaded
+        return False
 
     _load_attempted = True
 
@@ -69,13 +70,6 @@ def _load_model() -> bool:
     return True
 
 
-def is_classifier_available() -> bool:
-    """Check if the ONNX model is loaded and ready."""
-    if _loaded:
-        return True
-    return _load_model()
-
-
 def _classify_segment(input_ids: list[int], attention_mask: list[int]) -> tuple[str, float]:
     """Classify a single segment. Returns (label, malicious_score)."""
     import numpy as np
@@ -89,13 +83,9 @@ def _classify_segment(input_ids: list[int], attention_mask: list[int]) -> tuple[
     outputs = _session.run(None, inputs)
     logits = outputs[0][0]
 
-    # Softmax to get probabilities
     exp_logits = np.exp(logits - np.max(logits))
     probs = exp_logits / exp_logits.sum()
 
-    # Label 2 = INJECTION/MALICIOUS, Labels 0,1 = BENIGN
-    # Prompt Guard 2 uses 3 classes: 0=BENIGN, 1=INJECTION, 2=JAILBREAK
-    # We treat both INJECTION and JAILBREAK as MALICIOUS
     malicious_score = float(probs[1] + probs[2]) if len(probs) > 2 else float(probs[1])
     label = "MALICIOUS" if malicious_score >= get_config().classifier_threshold else "BENIGN"
 
@@ -128,7 +118,6 @@ def classify(text: str) -> ClassifierResult | None:
     all_ids: list[int] = encoding["input_ids"]
 
     if len(all_ids) <= max_length:
-        # Short text — classify directly with proper special tokens
         enc = _tokenizer(
             text,
             truncation=True,
@@ -138,7 +127,6 @@ def classify(text: str) -> ClassifierResult | None:
         )
         label, score = _classify_segment(enc["input_ids"], enc["attention_mask"])
     else:
-        # Long text — split into overlapping segments
         best_label = "BENIGN"
         best_score = 0.0
 
@@ -147,7 +135,6 @@ def classify(text: str) -> ClassifierResult | None:
             if not segment_ids:
                 break
 
-            # Re-encode segment with special tokens and padding
             segment_text = _tokenizer.decode(segment_ids, skip_special_tokens=True)
             enc = _tokenizer(
                 segment_text,
@@ -162,7 +149,6 @@ def classify(text: str) -> ClassifierResult | None:
                 best_score = seg_score
                 best_label = seg_label
 
-            # Stop if we've covered all tokens
             if start_idx + max_length >= len(all_ids):
                 break
 

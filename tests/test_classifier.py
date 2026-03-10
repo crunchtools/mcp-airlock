@@ -67,14 +67,10 @@ class TestClassifierModelNotAvailable:
             assert result is None
 
     def test_is_classifier_available_false_when_model_missing(self) -> None:
-        # Model path doesn't exist, so loading should fail
         result = is_classifier_available()
-        # In test env without model files, this should be False
-        # (onnxruntime is installed but model files don't exist)
         assert isinstance(result, bool)
 
     def test_classify_returns_none_when_model_files_missing(self) -> None:
-        # The default model path /models/prompt-guard-2-22m doesn't exist in test
         result = classify("This is a normal sentence.")
         assert result is None
 
@@ -104,9 +100,7 @@ class TestClassifyWithMockedModel:
     ) -> tuple[MagicMock, MagicMock]:
         """Set up mocked tokenizer and session for classify tests."""
         mock_tokenizer = MagicMock()
-        # For the initial tokenization (no special tokens)
         mock_tokenizer.return_value = {"input_ids": list(range(token_count))}
-        # For segment encoding with special tokens
         mock_tokenizer.side_effect = None
         mock_tokenizer.return_value = {
             "input_ids": list(range(token_count)),
@@ -132,7 +126,6 @@ class TestClassifyWithMockedModel:
         }
 
         mock_session = MagicMock()
-        # High probability for class 0 (BENIGN), low for 1 (INJECTION), low for 2 (JAILBREAK)
         mock_session.run.return_value = [np.array([[5.0, -5.0, -5.0]])]
 
         with (
@@ -170,7 +163,6 @@ class TestClassifyWithMockedModel:
         }
 
         mock_session = MagicMock()
-        # High probability for class 1 (INJECTION)
         mock_session.run.return_value = [np.array([[-5.0, 5.0, -5.0]])]
 
         with (
@@ -207,7 +199,6 @@ class TestClassifyWithMockedModel:
         }
 
         mock_session = MagicMock()
-        # High probability for class 2 (JAILBREAK)
         mock_session.run.return_value = [np.array([[-5.0, -5.0, 5.0]])]
 
         with (
@@ -242,8 +233,6 @@ class TestSegmentSplitting:
         import numpy as np
 
         mock_tokenizer = MagicMock()
-        # First call: check length (no special tokens)
-        # Second call: encode with special tokens
         short_ids = list(range(100))
         mock_tokenizer.return_value = {
             "input_ids": short_ids,
@@ -273,7 +262,6 @@ class TestSegmentSplitting:
         ):
             result = classify("Short text.")
             assert result is not None
-            # Session.run should be called once (no splitting)
             assert mock_session.run.call_count == 1
 
     def test_long_text_splitting(self) -> None:
@@ -286,9 +274,7 @@ class TestSegmentSplitting:
             nonlocal call_count
             call_count += 1
             if kwargs.get("add_special_tokens") is False:
-                # Initial tokenization — return 800 tokens to trigger splitting
                 return {"input_ids": list(range(800))}
-            # Segment encoding
             return {
                 "input_ids": list(range(512)),
                 "attention_mask": [1] * 512,
@@ -299,7 +285,6 @@ class TestSegmentSplitting:
         mock_tokenizer.decode.return_value = "decoded segment text"
 
         mock_session = MagicMock()
-        # All segments return BENIGN
         mock_session.run.return_value = [np.array([[5.0, -5.0, -5.0]])]
 
         with (
@@ -322,8 +307,6 @@ class TestSegmentSplitting:
         ):
             result = classify("A " * 800)
             assert result is not None
-            # 800 tokens with stride 256: segments at 0, 256, 512 = 3 segments
-            # But last segment at 512 covers 512-800 (288 tokens), so 3 segments
             assert mock_session.run.call_count >= 2
 
     def test_highest_score_wins(self) -> None:
@@ -346,7 +329,6 @@ class TestSegmentSplitting:
         mock_tokenizer.side_effect = mock_tokenizer_call
         mock_tokenizer.decode.return_value = "decoded segment"
 
-        # First segment BENIGN, second segment MALICIOUS, third BENIGN
         segment_logits = [
             [np.array([[5.0, -5.0, -5.0]])],  # BENIGN
             [np.array([[-5.0, 5.0, -5.0]])],  # MALICIOUS
@@ -376,7 +358,6 @@ class TestSegmentSplitting:
         ):
             result = classify("Mixed content with injection in the middle." * 100)
             assert result is not None
-            # The highest malicious score segment should win
             assert result.label == "MALICIOUS"
             assert result.score > 0.9
 

@@ -41,7 +41,6 @@ async def safe_fetch(url: str) -> dict[str, Any]:
 
     is_trusted = config.is_trusted_domain(url)
 
-    # Layer 2: Classifier check (after sanitization, before Q-Agent)
     classification = classify(pipeline_result.content)
     if classification and classification.label == "MALICIOUS" and not is_trusted:
         domain = urlparse(url).hostname
@@ -119,7 +118,6 @@ async def quarantine_fetch(url: str, prompt: str) -> dict[str, Any]:
 
     is_trusted = config.is_trusted_domain(url)
 
-    # Layer 2: Classifier check (warn + proceed in quarantine mode)
     classifier_warning = None
     classification = classify(pipeline_result.content)
     if classification and classification.label == "MALICIOUS":

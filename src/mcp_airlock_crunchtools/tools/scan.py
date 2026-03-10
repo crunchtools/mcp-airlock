@@ -139,7 +139,6 @@ async def quarantine_scan(
     layer1_risk = pipeline_result.stats.risk_level()
     layer1_detections = pipeline_result.stats.total_detections()
 
-    # Layer 2: Classifier
     classifier_result = None
     classification = classify(pipeline_result.content)
     if classification:
@@ -197,7 +196,6 @@ async def deep_quarantine_scan(
     layer1_risk = pipeline_result.stats.risk_level()
     layer1_detections = pipeline_result.stats.total_detections()
 
-    # Layer 2: Classifier (deep scan classifies raw content)
     classifier_result = None
     classification = classify(content)
     if classification:

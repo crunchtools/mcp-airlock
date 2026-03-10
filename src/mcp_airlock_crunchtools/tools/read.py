@@ -88,7 +88,6 @@ async def safe_read(path: str) -> dict[str, Any]:
 
     is_trusted = config.is_trusted_path(resolved)
 
-    # Layer 2: Classifier check (after sanitization, before Q-Agent)
     classification = classify(pipeline_result.content)
     if classification and classification.label == "MALICIOUS" and not is_trusted:
         record_detection(
@@ -166,7 +165,6 @@ async def quarantine_read(path: str, prompt: str) -> dict[str, Any]:
 
     is_trusted = config.is_trusted_path(resolved)
 
-    # Layer 2: Classifier check (warn + proceed in quarantine mode)
     classifier_warning = None
     classification = classify(pipeline_result.content)
     if classification and classification.label == "MALICIOUS":
