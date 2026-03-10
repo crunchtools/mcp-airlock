@@ -60,5 +60,15 @@ class FileReadError(AirlockError):
         super().__init__(f"Cannot read {path}: {reason}")
 
 
+class ContentSizeError(AirlockError):
+    """Raised when inline content exceeds the maximum allowed size."""
+
+    def __init__(self, size: int, max_size: int) -> None:
+        super().__init__(
+            f"Content too large: {size} chars (max {max_size}). "
+            "Split content into smaller chunks."
+        )
+
+
 class ConfigError(AirlockError):
     """Raised for configuration problems."""
