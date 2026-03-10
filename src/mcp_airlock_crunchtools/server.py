@@ -7,6 +7,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .tools import (
+    deep_quarantine_scan,
     get_airlock_stats,
     quarantine_fetch,
     quarantine_read,
@@ -113,6 +114,27 @@ async def quarantine_scan_tool(
         path: File path to scan (optional)
     """
     return await quarantine_scan(url=url, path=path)
+
+
+@mcp.tool()
+async def deep_quarantine_scan_tool(
+    url: str | None = None,
+    path: str | None = None,
+) -> dict[str, Any]:
+    """Deep security scan: Q-Agent analyzes raw unsanitized content.
+
+    Layer 1 runs for stats reporting, but the Q-Agent receives the original
+    content for full semantic analysis. Use this for diagnostic deep-dives on
+    suspicious content. Higher risk of Q-Agent compromise but better detection.
+
+    IMPORTANT: The Q-Agent sees raw content in this mode. Cross-reference
+    results with quarantine_scan for a complete assessment.
+
+    Args:
+        url: URL to scan (optional)
+        path: File path to scan (optional)
+    """
+    return await deep_quarantine_scan(url=url, path=path)
 
 
 @mcp.tool()

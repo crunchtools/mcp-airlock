@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from .fetch import quarantine_fetch, safe_fetch
 from .read import quarantine_read, safe_read
-from .scan import quarantine_scan
+from .scan import deep_quarantine_scan, quarantine_scan
 from .stats import get_airlock_stats
 
 __all__ = [
+    "deep_quarantine_scan",
     "quarantine_fetch",
     "quarantine_read",
     "quarantine_scan",

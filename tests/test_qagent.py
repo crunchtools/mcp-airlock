@@ -9,8 +9,14 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
+from mcp_airlock_crunchtools.errors import QuarantineAgentError
 from mcp_airlock_crunchtools.quarantine.agent import (
+    _CANARY_PREFIX,
     _build_request_body,
+    _check_canary,
+    _enforce_quarantine,
+    _generate_canary,
+    _inject_canary,
     quarantine_detect,
     quarantine_extract,
 )
@@ -243,6 +249,190 @@ class TestQuarantineDetect:
             resp = await quarantine_detect("content")
             assert resp["injection_detected"] is False
             assert resp["risk_level"] == "low"
+
+
+class TestCanaryTokens:
+    """Verify per-request canary token generation and detection."""
+
+    def test_generate_canary_has_prefix(self) -> None:
+        canary = _generate_canary()
+        assert canary.startswith(_CANARY_PREFIX)
+
+    def test_generate_canary_unique(self) -> None:
+        c1 = _generate_canary()
+        c2 = _generate_canary()
+        assert c1 != c2
+
+    def test_inject_canary_appends_to_prompt(self) -> None:
+        prompt = "Original system prompt"
+        canary = "CANARY-abc123"
+        result = _inject_canary(prompt, canary)
+        assert "Original system prompt" in result
+        assert canary in result
+        assert "Never output" in result
+
+    def test_check_canary_detects_leak(self) -> None:
+        canary = "CANARY-abc123"
+        assert _check_canary({"text": f"Some {canary} here"}, canary) is True
+        assert _check_canary({"text": "Clean output"}, canary) is False
+
+
+class TestRuntimeChecks:
+    """Verify _enforce_quarantine raises on tool injection."""
+
+    def test_rejects_tools_key(self) -> None:
+        body = {"tools": [{"name": "bad_tool"}], "contents": []}
+        with pytest.raises(QuarantineAgentError, match="tools key"):
+            _enforce_quarantine(body)
+
+    def test_rejects_function_declarations(self) -> None:
+        body = {"functionDeclarations": [{"name": "bad"}], "contents": []}
+        with pytest.raises(QuarantineAgentError, match="functionDeclarations"):
+            _enforce_quarantine(body)
+
+    def test_passes_clean_body(self) -> None:
+        body = _build_request_body(
+            content="test",
+            system_prompt="test",
+            response_schema=EXTRACTION_RESPONSE_SCHEMA,
+        )
+        _enforce_quarantine(body)  # Should not raise
+
+
+class TestPostExtractionSanitization:
+    """Verify post-extraction Layer 1 pass on Q-Agent output."""
+
+    @pytest.mark.asyncio
+    async def test_sanitize_text_called_on_extraction(self) -> None:
+        extraction_json = {
+            "extracted_text": "Some extracted content.",
+            "confidence": "high",
+            "injection_detected": False,
+        }
+        mock_resp = _mock_gemini_response(extraction_json)
+
+        with (
+            patch("mcp_airlock_crunchtools.quarantine.agent.get_config") as mock_config,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+            patch("mcp_airlock_crunchtools.quarantine.agent.sanitize_text") as mock_sanitize,
+        ):
+            mock_config.return_value.has_api_key = True
+            mock_config.return_value.api_key.get_secret_value.return_value = "test-key"
+            mock_config.return_value.model = "gemini-2.0-flash-lite"
+            mock_config.return_value.fallback = "layer1"
+            mock_post.return_value = mock_resp
+
+            from unittest.mock import MagicMock
+
+            mock_result = MagicMock()
+            mock_result.content = "Sanitized content."
+            mock_sanitize.return_value = mock_result
+
+            resp = await quarantine_extract("page", "Extract")
+            mock_sanitize.assert_called_once_with("Some extracted content.")
+            assert resp["content"]["extracted_text"] == "Sanitized content."
+
+    @pytest.mark.asyncio
+    async def test_clean_text_passes_through(self) -> None:
+        extraction_json = {
+            "extracted_text": "Clean content with no issues.",
+            "confidence": "high",
+            "injection_detected": False,
+        }
+        mock_resp = _mock_gemini_response(extraction_json)
+
+        with (
+            patch("mcp_airlock_crunchtools.quarantine.agent.get_config") as mock_config,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+        ):
+            mock_config.return_value.has_api_key = True
+            mock_config.return_value.api_key.get_secret_value.return_value = "test-key"
+            mock_config.return_value.model = "gemini-2.0-flash-lite"
+            mock_config.return_value.fallback = "layer1"
+            mock_post.return_value = mock_resp
+
+            resp = await quarantine_extract("page", "Extract")
+            assert resp["content"]["extracted_text"] == "Clean content with no issues."
+
+    @pytest.mark.asyncio
+    async def test_empty_extracted_text_skips_sanitize(self) -> None:
+        extraction_json = {
+            "extracted_text": "",
+            "confidence": "low",
+            "injection_detected": False,
+        }
+        mock_resp = _mock_gemini_response(extraction_json)
+
+        with (
+            patch("mcp_airlock_crunchtools.quarantine.agent.get_config") as mock_config,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+            patch("mcp_airlock_crunchtools.quarantine.agent.sanitize_text") as mock_sanitize,
+        ):
+            mock_config.return_value.has_api_key = True
+            mock_config.return_value.api_key.get_secret_value.return_value = "test-key"
+            mock_config.return_value.model = "gemini-2.0-flash-lite"
+            mock_config.return_value.fallback = "layer1"
+            mock_post.return_value = mock_resp
+
+            resp = await quarantine_extract("page", "Extract")
+            assert resp["content"]["extracted_text"] == ""
+            mock_sanitize.assert_not_called()
+
+
+class TestLayer1ContextInDetection:
+    """Verify layer1_context is prepended to content in quarantine_detect."""
+
+    @pytest.mark.asyncio
+    async def test_context_prepended_to_content(self) -> None:
+        detection_json = {
+            "injection_detected": False,
+            "risk_level": "low",
+            "summary": "Clean.",
+        }
+        mock_resp = _mock_gemini_response(detection_json)
+
+        with (
+            patch("mcp_airlock_crunchtools.quarantine.agent.get_config") as mock_config,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+        ):
+            mock_config.return_value.has_api_key = True
+            mock_config.return_value.api_key.get_secret_value.return_value = "test-key"
+            mock_config.return_value.model = "gemini-2.0-flash-lite"
+            mock_post.return_value = mock_resp
+
+            await quarantine_detect(
+                "test content",
+                layer1_context="Layer 1 found 3 hidden_html vectors",
+            )
+
+            call_body = mock_post.call_args[1]["json"]
+            user_text = call_body["contents"][0]["parts"][0]["text"]
+            assert "Layer 1 found 3 hidden_html vectors" in user_text
+            assert "test content" in user_text
+
+    @pytest.mark.asyncio
+    async def test_no_context_when_none(self) -> None:
+        detection_json = {
+            "injection_detected": False,
+            "risk_level": "low",
+            "summary": "Clean.",
+        }
+        mock_resp = _mock_gemini_response(detection_json)
+
+        with (
+            patch("mcp_airlock_crunchtools.quarantine.agent.get_config") as mock_config,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+        ):
+            mock_config.return_value.has_api_key = True
+            mock_config.return_value.api_key.get_secret_value.return_value = "test-key"
+            mock_config.return_value.model = "gemini-2.0-flash-lite"
+            mock_post.return_value = mock_resp
+
+            await quarantine_detect("test content", layer1_context=None)
+
+            call_body = mock_post.call_args[1]["json"]
+            user_text = call_body["contents"][0]["parts"][0]["text"]
+            assert user_text == "test content"
 
 
 class TestSystemPrompts:

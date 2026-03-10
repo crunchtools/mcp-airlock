@@ -1,4 +1,4 @@
-"""Scan tool — quarantine_scan for detection-only pre-flight."""
+"""Scan tools — quarantine_scan and deep_quarantine_scan."""
 
 from __future__ import annotations
 
@@ -25,44 +25,58 @@ def _risk_order(level: str) -> int:
     return _RISK_ORDER.get(level, 0)
 
 
-async def quarantine_scan(
-    url: str | None = None,
-    path: str | None = None,
-) -> dict[str, Any]:
-    """Scan a URL or file for injection vectors WITHOUT returning content.
+def _build_layer1_context(stats: dict[str, int], detections: int) -> str | None:
+    """Build a Layer 1 context string for the Q-Agent.
 
-    Returns threat assessment only — risk level, vector counts, Q-Agent observations.
-    Always runs full detection regardless of trust level.
+    Returns None if no detections were found (no context needed).
     """
-    if not url and not path:
-        return {"error": "Provide either url or path to scan"}
+    if detections == 0:
+        return None
 
-    config = get_config()
+    non_zero = {k: v for k, v in stats.items() if v > 0}
+    lines = [f"- {k}: {v}" for k, v in non_zero.items()]
+
+    return (
+        "Layer 1 deterministic scanning found the following injection vectors:\n"
+        + "\n".join(lines)
+        + "\nEvaluate the following sanitized content for additional semantic "
+        "injection vectors that may have survived deterministic stripping."
+    )
+
+
+async def _fetch_content(
+    url: str | None,
+    path: str | None,
+) -> tuple[str, str, str]:
+    """Fetch content from URL or file. Returns (content, source_type, source)."""
     source_type = "url" if url else "file"
     source = url or path or ""
 
     if url:
         content, _ = await fetch_url(url)
     else:
-        assert path is not None
+        if path is None:
+            msg = "Provide either url or path to scan"
+            raise ValueError(msg)
         resolved = _validate_file(path)
         with open(resolved, encoding="utf-8", errors="replace") as fh:
             content = fh.read()
         source = resolved
 
-    pipeline_result = (
-        sanitize(content) if looks_like_html(content, path) else sanitize_text(content)
-    )
+    return content, source_type, source
 
-    layer1_stats = pipeline_result.stats.to_flat_dict()
-    layer1_risk = pipeline_result.stats.risk_level()
-    layer1_detections = pipeline_result.stats.total_detections()
 
-    qagent_assessment = None
-    if config.has_api_key:
-        truncated = pipeline_result.content[:config.max_content]
-        qagent_assessment = await quarantine_detect(truncated)
-
+def _build_scan_result(
+    source_type: str,
+    source: str,
+    layer1_stats: dict[str, int],
+    layer1_risk: str,
+    layer1_detections: int,
+    qagent_assessment: dict[str, Any] | None,
+    has_api_key: bool,
+    scan_mode: str = "standard",
+) -> dict[str, Any]:
+    """Build the scan result dict shared by both scan tools."""
     qagent_risk = "low"
     if qagent_assessment:
         qagent_risk = qagent_assessment.get("risk_level", "low")
@@ -74,6 +88,7 @@ async def quarantine_scan(
     return {
         "source_type": source_type,
         "source": source,
+        "scan_mode": scan_mode,
         "risk_level": overall_risk,
         "layer1": {
             "detections": layer1_detections,
@@ -81,9 +96,98 @@ async def quarantine_scan(
             "stats": layer1_stats,
         },
         "qagent": {
-            "available": config.has_api_key,
+            "available": has_api_key,
             "assessment": qagent_assessment,
             "risk_level": qagent_risk,
         },
         "recommendation": _RECOMMENDATIONS.get(overall_risk, "Unknown risk level."),
     }
+
+
+async def quarantine_scan(
+    url: str | None = None,
+    path: str | None = None,
+) -> dict[str, Any]:
+    """Scan a URL or file for injection vectors WITHOUT returning content.
+
+    Returns threat assessment only — risk level, vector counts, Q-Agent observations.
+    Always runs full detection regardless of trust level. Q-Agent receives
+    sanitized content with Layer 1 stats as context.
+    """
+    if not url and not path:
+        return {"error": "Provide either url or path to scan"}
+
+    config = get_config()
+    content, source_type, source = await _fetch_content(url, path)
+
+    pipeline_result = (
+        sanitize(content) if looks_like_html(content, path) else sanitize_text(content)
+    )
+
+    layer1_stats = pipeline_result.stats.to_flat_dict()
+    layer1_risk = pipeline_result.stats.risk_level()
+    layer1_detections = pipeline_result.stats.total_detections()
+
+    qagent_assessment = None
+    if config.has_api_key:
+        truncated = pipeline_result.content[: config.max_content]
+        layer1_context = _build_layer1_context(layer1_stats, layer1_detections)
+        qagent_assessment = await quarantine_detect(truncated, layer1_context=layer1_context)
+
+    return _build_scan_result(
+        source_type=source_type,
+        source=source,
+        layer1_stats=layer1_stats,
+        layer1_risk=layer1_risk,
+        layer1_detections=layer1_detections,
+        qagent_assessment=qagent_assessment,
+        has_api_key=config.has_api_key,
+        scan_mode="standard",
+    )
+
+
+async def deep_quarantine_scan(
+    url: str | None = None,
+    path: str | None = None,
+) -> dict[str, Any]:
+    """Deep scan: Q-Agent analyzes raw unsanitized content.
+
+    Layer 1 still runs for stats reporting, but the Q-Agent receives
+    the original content for full semantic analysis. Higher risk of
+    Q-Agent compromise, but better detection of injection vectors that
+    Layer 1 would strip before the Q-Agent could evaluate them.
+
+    The Q-Agent remains architecturally quarantined (no tools, no memory,
+    structured JSON only) — even if compromised, it can only return JSON
+    in the fixed schema.
+    """
+    if not url and not path:
+        return {"error": "Provide either url or path to scan"}
+
+    config = get_config()
+    content, source_type, source = await _fetch_content(url, path)
+
+    pipeline_result = (
+        sanitize(content) if looks_like_html(content, path) else sanitize_text(content)
+    )
+
+    layer1_stats = pipeline_result.stats.to_flat_dict()
+    layer1_risk = pipeline_result.stats.risk_level()
+    layer1_detections = pipeline_result.stats.total_detections()
+
+    qagent_assessment = None
+    if config.has_api_key:
+        truncated = content[: config.max_content]
+        layer1_context = _build_layer1_context(layer1_stats, layer1_detections)
+        qagent_assessment = await quarantine_detect(truncated, layer1_context=layer1_context)
+
+    return _build_scan_result(
+        source_type=source_type,
+        source=source,
+        layer1_stats=layer1_stats,
+        layer1_risk=layer1_risk,
+        layer1_detections=layer1_detections,
+        qagent_assessment=qagent_assessment,
+        has_api_key=config.has_api_key,
+        scan_mode="deep",
+    )
