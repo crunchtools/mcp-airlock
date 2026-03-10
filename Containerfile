@@ -3,7 +3,8 @@
 # Built on Hummingbird Python image (Red Hat UBI-based) for enterprise security
 #
 # Build (requires HF_TOKEN for Llama model download):
-#   podman build --secret id=hf_token,env=HF_TOKEN \
+#   source ~/.config/mcp-env/mcp-airlock-build.env
+#   podman build --build-arg HF_TOKEN=$HF_TOKEN \
 #     -t quay.io/crunchtools/mcp-airlock .
 #
 # Run (Streamable HTTP on port 8019):
@@ -26,6 +27,8 @@
 # ============================================================
 FROM quay.io/hummingbird/python:latest AS model-builder
 
+ENV PATH="/tmp/.local/bin:${PATH}"
+
 RUN pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir \
@@ -35,9 +38,9 @@ RUN pip install --no-cache-dir \
 
 # Download and convert the official Meta Prompt Guard 2 22M model to ONNX
 # Requires HF_TOKEN to access meta-llama gated model
-RUN --mount=type=secret,id=hf_token \
-    export HF_TOKEN=$(cat /run/secrets/hf_token) && \
-    optimum-cli export onnx \
+# Uses ARG (not secret mount) — this is a discarded builder stage
+ARG HF_TOKEN
+RUN HF_TOKEN="${HF_TOKEN}" optimum-cli export onnx \
       --model meta-llama/Llama-Prompt-Guard-2-22M \
       --task text-classification \
       /models/prompt-guard-2-22m/

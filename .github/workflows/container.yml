@@ -55,8 +55,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          secrets: |
-            hf_token=${{ secrets.HF_TOKEN }}
+          build-args: |
+            HF_TOKEN=${{ secrets.HF_TOKEN }}
 
       - name: Run Trivy vulnerability scanner
         continue-on-error: true
@@ -112,5 +112,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          secrets: |
-            hf_token=${{ secrets.HF_TOKEN }}
+          build-args: |
+            HF_TOKEN=${{ secrets.HF_TOKEN }}
