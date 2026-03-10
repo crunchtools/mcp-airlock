@@ -6,6 +6,7 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from .delimiters import DelimiterStats, sanitize_delimiters
+from .directives import DirectiveStats, sanitize_directives
 from .encoded import EncodedStats, sanitize_encoded
 from .exfiltration import ExfiltrationStats, sanitize_exfiltration
 from .html import HtmlStats, sanitize_html
@@ -24,6 +25,7 @@ class PipelineStats:
     encoded: EncodedStats = field(default_factory=EncodedStats)
     exfiltration: ExfiltrationStats = field(default_factory=ExfiltrationStats)
     delimiters: DelimiterStats = field(default_factory=DelimiterStats)
+    directives: DirectiveStats = field(default_factory=DirectiveStats)
 
     def to_flat_dict(self) -> dict[str, int]:
         """Flatten all stats into a single dict for serialization."""
@@ -34,6 +36,7 @@ class PipelineStats:
             ("encoded", asdict(self.encoded)),
             ("exfiltration", asdict(self.exfiltration)),
             ("delimiters", asdict(self.delimiters)),
+            ("directives", asdict(self.directives)),
         ]
         for section_name, section_dict in named_sections:
             for key, value in section_dict.items():
@@ -105,6 +108,9 @@ def sanitize(html_content: str) -> PipelineResult:
     content, delimiter_stats = sanitize_delimiters(content)
     pipeline_stats.delimiters = delimiter_stats
 
+    content, directive_stats = sanitize_directives(content)
+    pipeline_stats.directives = directive_stats
+
     output_size = len(content.encode("utf-8"))
 
     return PipelineResult(
@@ -137,6 +143,9 @@ def sanitize_text(text: str) -> PipelineResult:
 
     content, delimiter_stats = sanitize_delimiters(content)
     pipeline_stats.delimiters = delimiter_stats
+
+    content, directive_stats = sanitize_directives(content)
+    pipeline_stats.directives = directive_stats
 
     output_size = len(content.encode("utf-8"))
 

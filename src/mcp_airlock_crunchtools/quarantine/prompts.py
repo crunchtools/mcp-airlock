@@ -46,10 +46,12 @@ EXTRACTION_RESPONSE_SCHEMA = {
     "properties": {
         "extracted_text": {
             "type": "string",
+            "maxLength": 50000,
             "description": "The main factual content extracted from the text",
         },
         "title": {
             "type": "string",
+            "maxLength": 500,
             "description": "Title or heading of the content, if identifiable",
         },
         "confidence": {
@@ -63,6 +65,7 @@ EXTRACTION_RESPONSE_SCHEMA = {
         },
         "injection_details": {
             "type": "string",
+            "maxLength": 2000,
             "description": "Description of detected injection attempts, if any",
         },
     },
@@ -88,10 +91,12 @@ DETECTION_RESPONSE_SCHEMA = {
                 "properties": {
                     "type": {
                         "type": "string",
+                        "maxLength": 200,
                         "description": "Type of injection vector found",
                     },
                     "description": {
                         "type": "string",
+                        "maxLength": 1000,
                         "description": "Description of the finding",
                     },
                 },
@@ -101,6 +106,7 @@ DETECTION_RESPONSE_SCHEMA = {
         },
         "summary": {
             "type": "string",
+            "maxLength": 2000,
             "description": "Brief summary of the security scan results",
         },
     },

@@ -31,6 +31,7 @@ _CANARY_PREFIX = "CANARY-"
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 GEMINI_TIMEOUT = 60.0
 MAX_OUTPUT_TOKENS = 4096
+MAX_EXTRACTED_TEXT = 50_000
 
 
 def _generate_canary() -> str:
@@ -205,7 +206,7 @@ async def quarantine_extract(content: str, prompt: str) -> dict[str, Any]:
         extracted = parsed.get("extracted_text", "")
         if extracted:
             result = sanitize_text(extracted)
-            parsed["extracted_text"] = result.content
+            parsed["extracted_text"] = result.content[:MAX_EXTRACTED_TEXT]
         return {
             "content": parsed,
             "usage": usage,

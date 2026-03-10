@@ -12,7 +12,7 @@ from pydantic import SecretStr
 
 _config: Config | None = None
 
-DEFAULT_MODEL = "gemini-2.0-flash-lite"
+DEFAULT_MODEL = "gemini-2.5-flash-lite"
 DEFAULT_FALLBACK = "layer1"
 DEFAULT_MAX_CONTENT = 100_000
 DEFAULT_DB_PATH = "/data/airlock.db"

@@ -9,9 +9,11 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
+from mcp_airlock_crunchtools.config import DEFAULT_MODEL
 from mcp_airlock_crunchtools.errors import QuarantineAgentError
 from mcp_airlock_crunchtools.quarantine.agent import (
     _CANARY_PREFIX,
+    MAX_EXTRACTED_TEXT,
     _build_request_body,
     _check_canary,
     _enforce_quarantine,
@@ -459,3 +461,50 @@ class TestSystemPrompts:
         assert "injection_detected" in required
         assert "risk_level" in required
         assert "summary" in required
+
+    def test_extraction_schema_has_max_lengths(self) -> None:
+        props = EXTRACTION_RESPONSE_SCHEMA["properties"]
+        assert props["extracted_text"]["maxLength"] == 50000
+        assert props["title"]["maxLength"] == 500
+        assert props["injection_details"]["maxLength"] == 2000
+
+    def test_detection_schema_has_max_lengths(self) -> None:
+        props = DETECTION_RESPONSE_SCHEMA["properties"]
+        assert props["summary"]["maxLength"] == 2000
+        findings_props = props["findings"]["items"]["properties"]
+        assert findings_props["type"]["maxLength"] == 200
+        assert findings_props["description"]["maxLength"] == 1000
+
+
+class TestModelDefault:
+    """Verify default model configuration."""
+
+    def test_default_model_is_2_5_flash_lite(self) -> None:
+        assert DEFAULT_MODEL == "gemini-2.5-flash-lite"
+
+
+class TestPostExtractionTruncation:
+    """Verify extracted_text is truncated to MAX_EXTRACTED_TEXT."""
+
+    @pytest.mark.asyncio
+    async def test_output_truncated_to_max_length(self) -> None:
+        long_text = "A" * (MAX_EXTRACTED_TEXT + 1000)
+        extraction_json = {
+            "extracted_text": long_text,
+            "confidence": "high",
+            "injection_detected": False,
+        }
+        mock_resp = _mock_gemini_response(extraction_json)
+
+        with (
+            patch("mcp_airlock_crunchtools.quarantine.agent.get_config") as mock_config,
+            patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
+        ):
+            mock_config.return_value.has_api_key = True
+            mock_config.return_value.api_key.get_secret_value.return_value = "test-key"
+            mock_config.return_value.model = "gemini-2.5-flash-lite"
+            mock_config.return_value.fallback = "layer1"
+            mock_post.return_value = mock_resp
+
+            resp = await quarantine_extract("page", "Extract")
+            assert len(resp["content"]["extracted_text"]) == MAX_EXTRACTED_TEXT
