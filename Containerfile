@@ -6,8 +6,8 @@
 #
 # Run (Streamable HTTP on port 8019):
 #   podman run --rm \
-#     --env-file ~/.config/mcp-env/mcp-quarantine.env \
-#     -v ~/.local/share/mcp-quarantine:/data:Z \
+#     --env-file ~/.config/mcp-env/mcp-airlock.env \
+#     -v ~/.local/share/mcp-airlock:/data:Z \
 #     -p 127.0.0.1:8019:8019 \
 #     quay.io/crunchtools/mcp-airlock \
 #     --transport streamable-http --host 0.0.0.0 --port 8019
@@ -15,8 +15,8 @@
 # With Claude Code (stdio):
 #   claude mcp add mcp-airlock-crunchtools \
 #     -- podman run -i --rm \
-#     --env-file ~/.config/mcp-env/mcp-quarantine.env \
-#     -v ~/.local/share/mcp-quarantine:/data:Z \
+#     --env-file ~/.config/mcp-env/mcp-airlock.env \
+#     -v ~/.local/share/mcp-airlock:/data:Z \
 #     quay.io/crunchtools/mcp-airlock
 
 FROM quay.io/hummingbird/python:latest
