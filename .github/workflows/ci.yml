@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -41,29 +41,11 @@ jobs:
   gourmand:
     name: Code Quality (Gourmand)
     runs-on: ubuntu-latest
+    container:
+      image: quay.io/crunchtools/gourmand:latest
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Gourmand binary
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/
-            ~/.cargo/git/
-          key: ${{ runner.os }}-cargo-gourmand-${{ hashFiles('gourmand.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-gourmand-
-
-      - name: Install Gourmand
-        run: |
-          if ! command -v gourmand &> /dev/null; then
-            cargo install --git https://codeberg.org/mattdm/gourmand.git
-          fi
 
       - name: Run Gourmand
         run: gourmand --full .
