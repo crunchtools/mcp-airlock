@@ -31,7 +31,7 @@ class TestClassifierConfig:
     """Verify classifier configuration defaults."""
 
     def test_default_threshold(self) -> None:
-        assert DEFAULT_CLASSIFIER_THRESHOLD == 0.9
+        assert DEFAULT_CLASSIFIER_THRESHOLD == 0.5
 
     def test_default_model_path(self) -> None:
         assert DEFAULT_CLASSIFIER_MODEL_PATH == "/models/prompt-guard-2-22m"
@@ -41,7 +41,7 @@ class TestClassifierConfig:
             from mcp_airlock_crunchtools.config import Config
 
             config = Config()
-            assert config.classifier_threshold == 0.9
+            assert config.classifier_threshold == 0.5
             assert config.classifier_model_path == "/models/prompt-guard-2-22m"
 
     def test_config_respects_env_vars(self) -> None:
@@ -634,7 +634,7 @@ class TestStatsReportsClassifier:
             mock_config.return_value.fallback = "layer1"
             mock_config.return_value.max_content = 100_000
             mock_config.return_value.has_api_key = True
-            mock_config.return_value.classifier_threshold = 0.9
+            mock_config.return_value.classifier_threshold = 0.5
             mock_config.return_value.classifier_model_path = "/models/prompt-guard-2-22m"
 
             from mcp_airlock_crunchtools.tools.stats import get_airlock_stats
@@ -643,6 +643,6 @@ class TestStatsReportsClassifier:
 
             assert "classifier" in result
             assert result["classifier"]["available"] is False
-            assert result["classifier"]["threshold"] == 0.9
+            assert result["classifier"]["threshold"] == 0.5
             assert result["classifier"]["model_path"] == "/models/prompt-guard-2-22m"
-            assert result["config"]["classifier_threshold"] == 0.9
+            assert result["config"]["classifier_threshold"] == 0.5
