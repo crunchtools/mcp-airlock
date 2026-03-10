@@ -62,7 +62,6 @@ async def safe_content(
 
     pipeline_result = _run_pipeline(content, content_type)
 
-    # L2: Classifier on sanitized content
     classification = classify(pipeline_result.content)
     if classification and classification.label == "MALICIOUS":
         record_detection(
@@ -78,7 +77,6 @@ async def safe_content(
         )
         raise BlockedSourceError(chash, "just detected")
 
-    # L3: Q-Agent detection on sanitized content
     if config.has_api_key:
         detection = await quarantine_detect(pipeline_result.content)
         if detection.get("injection_detected"):
@@ -92,7 +90,6 @@ async def safe_content(
             )
             raise BlockedSourceError(chash, "just detected")
 
-    # L1: High/critical detections from sanitization
     if pipeline_result.stats.total_detections() > 0:
         risk = pipeline_result.stats.risk_level()
         if risk in ("high", "critical"):
@@ -254,7 +251,6 @@ async def deep_scan_content(
     layer1_risk = pipeline_result.stats.risk_level()
     layer1_detections = pipeline_result.stats.total_detections()
 
-    # Deep mode: L2 classifies raw content
     classifier_result = None
     classification = classify(content)
     if classification:
@@ -264,7 +260,6 @@ async def deep_scan_content(
             "latency_ms": classification.latency_ms,
         }
 
-    # Deep mode: L3 detects on raw content
     qagent_assessment = None
     if config.has_api_key:
         truncated = content[: config.max_content]

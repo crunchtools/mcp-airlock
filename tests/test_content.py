@@ -168,7 +168,6 @@ class TestSafeContent:
             mock_config.return_value.max_content = 100_000
             mock_config.return_value.has_api_key = False
 
-            # content_type is text/plain but content looks like HTML
             result = await safe_content(html, content_type="text/plain")
 
             mock_sanitize.assert_called_once_with(html)
@@ -319,7 +318,6 @@ class TestScanContent:
 
             await deep_scan_content(raw_content)
 
-            # Deep mode: classify receives raw content
             mock_classify.assert_called_once_with(raw_content)
 
     @pytest.mark.asyncio
@@ -341,11 +339,8 @@ class TestScanContent:
 
             await scan_content(raw_content)
 
-            # Standard mode: classify receives sanitized content (output of pipeline)
             mock_classify.assert_called_once()
             call_arg = mock_classify.call_args[0][0]
-            # The sanitized text pipeline returns the content (possibly stripped)
-            # The key point is classify was called (not skipped)
             assert isinstance(call_arg, str)
 
 
