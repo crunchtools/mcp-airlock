@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run linter
+        run: uv run ruff check src tests
+
+      - name: Run type checker
+        run: uv run mypy src
+
+      - name: Run tests
+        run: uv run pytest -v
+        env:
+          GEMINI_API_KEY: "test_key_for_ci"
+
+  gourmand:
+    name: Code Quality (Gourmand)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Gourmand binary
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+          key: ${{ runner.os }}-cargo-gourmand-${{ hashFiles('gourmand.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-gourmand-
+
+      - name: Install Gourmand
+        run: |
+          if ! command -v gourmand &> /dev/null; then
+            cargo install --git https://codeberg.org/mattdm/gourmand.git
+          fi
+
+      - name: Run Gourmand
+        run: gourmand --full .
+
+  build-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container image
+        run: |
+          docker build -f Containerfile -t mcp-airlock:test .
+
+      - name: Verify container
+        run: |
+          timeout 5 docker run --rm mcp-airlock:test || true
+
+  validate-constitution:
+    name: Constitution Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: crunchtools/constitution
+          path: .constitution
+
+      - name: Validate constitution
+        run: python3 .constitution/validate-constitution.py .specify/memory/constitution.md --verbose
