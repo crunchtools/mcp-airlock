@@ -24,10 +24,9 @@
 
 # ============================================================
 # Stage 1: ONNX model conversion (builder — PyTorch + optimum)
+# Full Python image needed for PyTorch/numpy C libs. Discarded after build.
 # ============================================================
-FROM quay.io/hummingbird/python:latest AS model-builder
-
-ENV PATH="/tmp/.local/bin:${PATH}"
+FROM python:3.12-slim AS model-builder
 
 RUN pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cpu && \
@@ -38,7 +37,6 @@ RUN pip install --no-cache-dir \
 
 # Download and convert the official Meta Prompt Guard 2 22M model to ONNX
 # Requires HF_TOKEN to access meta-llama gated model
-# Uses ARG (not secret mount) — this is a discarded builder stage
 ARG HF_TOKEN
 RUN HF_TOKEN="${HF_TOKEN}" optimum-cli export onnx \
       --model meta-llama/Llama-Prompt-Guard-2-22M \

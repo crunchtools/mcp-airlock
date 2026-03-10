@@ -57,6 +57,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             HF_TOKEN=${{ secrets.HF_TOKEN }}
+          no-cache: true
 
       - name: Run Trivy vulnerability scanner
         continue-on-error: true
@@ -114,3 +115,4 @@ jobs:
           cache-from: type=gha
           build-args: |
             HF_TOKEN=${{ secrets.HF_TOKEN }}
+          no-cache: true
