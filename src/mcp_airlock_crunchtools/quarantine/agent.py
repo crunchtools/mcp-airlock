@@ -19,8 +19,6 @@ import httpx
 
 from ..config import get_config
 from ..errors import QuarantineAgentError
-
-logger = logging.getLogger(__name__)
 from ..sanitize.pipeline import sanitize_text
 from .prompts import (
     DETECTION_RESPONSE_SCHEMA,
@@ -28,6 +26,8 @@ from .prompts import (
     EXTRACTION_RESPONSE_SCHEMA,
     EXTRACTION_SYSTEM_PROMPT,
 )
+
+logger = logging.getLogger(__name__)
 
 _CANARY_PREFIX = "CANARY-"
 

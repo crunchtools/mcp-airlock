@@ -57,7 +57,7 @@ class PipelineStats:
         text, unicode manipulation, encoded payloads, exfiltration URLs,
         LLM delimiters, and directive injection.
         """
-        return (
+        return int(
             self.html.hidden_elements
             + self.html.off_screen_elements
             + self.html.same_color_text
