@@ -185,6 +185,10 @@ def _classify_and_remove(soup: BeautifulSoup, stats: HtmlStats) -> None:
     for tag in list(soup.find_all(True)):
         if not isinstance(tag, Tag):
             continue
+        # Skip tags already decomposed by a parent removal — decompose()
+        # sets attrs to None but the pre-built list still holds references.
+        if tag.attrs is None:
+            continue
         for stat_attr, check_fn in _CHECK_FUNCTIONS.items():
             if check_fn(tag):
                 setattr(stats, stat_attr, getattr(stats, stat_attr) + 1)

@@ -97,3 +97,23 @@ class TestHtmlSanitization:
         assert stats.hidden_elements == 0
         assert stats.script_tags == 0
         assert stats.html_comments == 0
+
+    def test_nested_hidden_children_no_crash(self) -> None:
+        """Decomposing a hidden parent must not crash on its children.
+
+        When _classify_and_remove decomposes a hidden parent, BeautifulSoup
+        sets attrs=None on all children. The pre-built tag list still holds
+        references to these decomposed children — we must skip them.
+        """
+        html = (
+            '<div style="display:none">'
+            '  <span class="child1">hidden child 1</span>'
+            '  <a href="#" class="child2">hidden child 2</a>'
+            '  <div><p>deeply nested</p></div>'
+            "</div>"
+            "<p>visible content</p>"
+        )
+        markdown, stats = sanitize_html(html)
+        assert stats.hidden_elements == 1
+        assert "visible content" in markdown
+        assert "hidden child" not in markdown

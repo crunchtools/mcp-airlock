@@ -11,6 +11,7 @@ This is the architectural enforcement of the Q-Agent quarantine:
 from __future__ import annotations
 
 import json
+import logging
 import secrets
 from typing import Any
 
@@ -18,6 +19,8 @@ import httpx
 
 from ..config import get_config
 from ..errors import QuarantineAgentError
+
+logger = logging.getLogger(__name__)
 from ..sanitize.pipeline import sanitize_text
 from .prompts import (
     DETECTION_RESPONSE_SCHEMA,
@@ -249,11 +252,12 @@ async def quarantine_detect(
             system_prompt=DETECTION_SYSTEM_PROMPT,
             response_schema=DETECTION_RESPONSE_SCHEMA,
         )
-    except QuarantineAgentError:
+    except QuarantineAgentError as exc:
+        logger.warning("Q-Agent detection failed: %s", exc)
         return {
             "injection_detected": False,
             "risk_level": "low",
-            "summary": "Q-Agent unavailable, detection skipped",
+            "summary": f"Q-Agent detection failed: {exc}",
         }
     else:
         parsed.pop("_usage", None)

@@ -121,3 +121,31 @@ class TestPipelineStats:
         assert "html_hidden_elements" in flat
         assert "encoded_base64_payloads" in flat
         assert "exfiltration_exfiltration_urls" in flat
+
+    def test_normal_html_does_not_inflate_risk(self) -> None:
+        """Scripts, styles, comments, and meta tags are normal HTML —
+        they should not drive risk_level above 'low'."""
+        html = (
+            "<!DOCTYPE html><html><head>"
+            '<meta charset="utf-8"><meta name="viewport">'
+            "<style>.body{}</style>"
+            "</head><body>"
+            "<!-- comment --><script>analytics()</script>"
+            "<p>Normal content</p>"
+            "</body></html>"
+        )
+        result = sanitize(html)
+        assert result.stats.total_detections() > 0  # elements were stripped
+        assert result.stats.suspicious_detections() == 0  # none are suspicious
+        assert result.stats.risk_level() == "low"
+
+    def test_hidden_elements_count_as_suspicious(self) -> None:
+        """Hidden elements ARE suspicious — they could hide injection."""
+        html = (
+            '<div style="display:none">hidden</div>'
+            '<div style="visibility:hidden">also hidden</div>'
+            "<p>Visible</p>"
+        )
+        result = sanitize(html)
+        assert result.stats.suspicious_detections() == 2
+        assert result.stats.risk_level() == "medium"

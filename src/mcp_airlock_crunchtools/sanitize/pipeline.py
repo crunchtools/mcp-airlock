@@ -44,17 +44,38 @@ class PipelineStats:
         return flat
 
     def total_detections(self) -> int:
-        """Total number of injection vectors detected across all stages."""
+        """Total number of elements stripped across all stages (informational)."""
         return sum(self.to_flat_dict().values())
 
+    def suspicious_detections(self) -> int:
+        """Count only genuinely suspicious detections for risk scoring.
+
+        Normal HTML elements (comments, scripts, styles, meta, noscript) are
+        expected on any website and stripped as a precaution — they do not
+        indicate injection. Only categories that signal actual attack vectors
+        count toward risk: hidden elements, off-screen positioning, same-color
+        text, unicode manipulation, encoded payloads, exfiltration URLs,
+        LLM delimiters, and directive injection.
+        """
+        return (
+            self.html.hidden_elements
+            + self.html.off_screen_elements
+            + self.html.same_color_text
+            + sum(asdict(self.unicode).values())
+            + sum(asdict(self.encoded).values())
+            + sum(asdict(self.exfiltration).values())
+            + sum(asdict(self.delimiters).values())
+            + sum(asdict(self.directives).values())
+        )
+
     def risk_level(self) -> str:
-        """Classify risk based on detection counts."""
-        total = self.total_detections()
-        if total == 0:
+        """Classify risk based on suspicious detection counts."""
+        suspicious = self.suspicious_detections()
+        if suspicious == 0:
             return "low"
-        if total <= 3:
+        if suspicious <= 3:
             return "medium"
-        if total <= 10:
+        if suspicious <= 10:
             return "high"
         return "critical"
 
