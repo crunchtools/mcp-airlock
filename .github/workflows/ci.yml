@@ -57,7 +57,7 @@ jobs:
 
       - name: Build container image
         run: |
-          docker build -f Containerfile -t mcp-airlock:test .
+          docker build -f Containerfile --build-arg HF_TOKEN=${{ secrets.HF_TOKEN }} -t mcp-airlock:test .
 
       - name: Verify container
         run: |
