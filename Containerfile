@@ -23,14 +23,16 @@
 #     quay.io/crunchtools/mcp-airlock
 
 # ============================================================
-# Stage 1: ONNX model conversion (builder — UBI Python, discarded)
-# UBI 10 Python 3.12 provides C libs for PyTorch/numpy.
+# Stage 1: ONNX model conversion (builder — UBI, discarded)
+# UBI provides dnf + C libs for PyTorch/numpy ONNX conversion.
 # ============================================================
-FROM registry.access.redhat.com/ubi10/python-312:latest AS model-builder
+FROM registry.access.redhat.com/ubi10/ubi:latest AS model-builder
 
-RUN pip install --no-cache-dir \
+RUN dnf install -y python3.12 python3.12-pip && dnf clean all
+
+RUN python3.12 -m pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir \
+    python3.12 -m pip install --no-cache-dir \
     optimum[onnxruntime] \
     transformers \
     sentencepiece
@@ -38,13 +40,15 @@ RUN pip install --no-cache-dir \
 # Download and convert the official Meta Prompt Guard 2 22M model to ONNX
 # Requires HF_TOKEN to access meta-llama gated model
 ARG HF_TOKEN
-RUN HF_TOKEN="${HF_TOKEN}" optimum-cli export onnx \
+RUN HF_TOKEN="${HF_TOKEN}" python3.12 -m optimum.exporters.onnx \
       --model meta-llama/Llama-Prompt-Guard-2-22M \
       --task text-classification \
       /models/prompt-guard-2-22m/
 
 # ============================================================
 # Stage 2: Runtime image (ONNX Runtime only — no PyTorch)
+# Hummingbird is Fedora-minimal, missing libstdc++ for C extensions.
+# Copy it from the builder stage to keep the image minimal.
 # ============================================================
 FROM quay.io/hummingbird/python:latest
 
@@ -65,6 +69,9 @@ LABEL name="mcp-airlock-crunchtools" \
 
 WORKDIR /app
 
+# Copy libstdc++ from builder — required by onnxruntime/numpy C extensions
+COPY --from=model-builder /usr/lib64/libstdc++.so.6* /usr/lib64/
+
 # Copy ONNX model files from builder stage (no PyTorch in final image)
 COPY --from=model-builder /models/prompt-guard-2-22m/ /models/prompt-guard-2-22m/
 
@@ -73,7 +80,8 @@ COPY src/ ./src/
 
 RUN pip install --no-cache-dir .
 
-RUN python -c "from mcp_airlock_crunchtools import main; print('Installation verified')"
+RUN python -c "from mcp_airlock_crunchtools import main; print('Installation verified')" && \
+    python -c "from mcp_airlock_crunchtools.quarantine.classifier import is_classifier_available; assert is_classifier_available(), 'Classifier failed to load'; print('Classifier verified')"
 
 ENV QUARANTINE_DB=/data/quarantine.db
 ENV CLASSIFIER_MODEL_PATH=/models/prompt-guard-2-22m
