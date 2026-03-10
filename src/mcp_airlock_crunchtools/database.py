@@ -104,9 +104,7 @@ def record_detection(
 def get_blocklist_stats() -> dict[str, Any]:
     """Get summary statistics for the blocklist."""
     db = get_db()
-    total = db.execute(
-        "SELECT COUNT(*) as cnt FROM detections WHERE blocked = 1"
-    ).fetchone()
+    total = db.execute("SELECT COUNT(*) as cnt FROM detections WHERE blocked = 1").fetchone()
     recent = db.execute(
         "SELECT source_type, source, domain, detected_at, risk_level "
         "FROM detections WHERE blocked = 1 "
@@ -114,8 +112,7 @@ def get_blocklist_stats() -> dict[str, Any]:
     ).fetchall()
 
     by_risk = db.execute(
-        "SELECT risk_level, COUNT(*) as cnt FROM detections "
-        "WHERE blocked = 1 GROUP BY risk_level"
+        "SELECT risk_level, COUNT(*) as cnt FROM detections WHERE blocked = 1 GROUP BY risk_level"
     ).fetchall()
 
     return {

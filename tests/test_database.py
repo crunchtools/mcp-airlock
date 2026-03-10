@@ -23,8 +23,10 @@ class TestBlocklist:
 
     def test_record_and_check_detection(self) -> None:
         conn = _fresh_db()
-        with patch.object(database, "_db", conn), \
-             patch.object(database, "get_db", return_value=conn):
+        with (
+            patch.object(database, "_db", conn),
+            patch.object(database, "get_db", return_value=conn),
+        ):
             detection_id = database.record_detection(
                 source_type="url",
                 source="https://evil.com/page",
@@ -40,14 +42,18 @@ class TestBlocklist:
 
     def test_unblocked_source_returns_none(self) -> None:
         conn = _fresh_db()
-        with patch.object(database, "_db", conn), \
-             patch.object(database, "get_db", return_value=conn):
+        with (
+            patch.object(database, "_db", conn),
+            patch.object(database, "get_db", return_value=conn),
+        ):
             assert database.is_blocked("https://clean.com") is None
 
     def test_domain_blocked(self) -> None:
         conn = _fresh_db()
-        with patch.object(database, "_db", conn), \
-             patch.object(database, "get_db", return_value=conn):
+        with (
+            patch.object(database, "_db", conn),
+            patch.object(database, "get_db", return_value=conn),
+        ):
             database.record_detection(
                 source_type="url",
                 source="https://evil.com/page1",
@@ -60,8 +66,10 @@ class TestBlocklist:
 
     def test_blocklist_stats(self) -> None:
         conn = _fresh_db()
-        with patch.object(database, "_db", conn), \
-             patch.object(database, "get_db", return_value=conn):
+        with (
+            patch.object(database, "_db", conn),
+            patch.object(database, "get_db", return_value=conn),
+        ):
             database.record_detection(
                 source_type="url",
                 source="https://evil1.com",
@@ -82,8 +90,10 @@ class TestBlocklist:
 
     def test_qagent_assessment_stored(self) -> None:
         conn = _fresh_db()
-        with patch.object(database, "_db", conn), \
-             patch.object(database, "get_db", return_value=conn):
+        with (
+            patch.object(database, "_db", conn),
+            patch.object(database, "get_db", return_value=conn),
+        ):
             database.record_detection(
                 source_type="url",
                 source="https://evil.com",

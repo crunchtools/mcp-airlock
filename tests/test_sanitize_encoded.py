@@ -31,7 +31,7 @@ class TestEncodedPayloadDetection:
         assert stats.hex_payloads == 1
 
     def test_strips_data_uris(self) -> None:
-        text = 'Visit data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=='
+        text = "Visit data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="
         cleaned, stats = sanitize_encoded(text)
         assert "[data-uri-removed]" in cleaned
         assert stats.data_uris == 1

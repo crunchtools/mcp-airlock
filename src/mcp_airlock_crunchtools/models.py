@@ -9,17 +9,49 @@ MAX_PATH_LENGTH = 1024
 MAX_PROMPT_LENGTH = 2000
 MAX_CONTENT_DISPLAY = 50_000
 
-ALLOWED_TEXT_EXTENSIONS = frozenset({
-    ".md", ".txt", ".rst", ".adoc", ".asciidoc",
-    ".py", ".js", ".ts", ".go", ".rs", ".java", ".c", ".cpp", ".h",
-    ".rb", ".php", ".sh", ".bash", ".zsh", ".fish",
-    ".yaml", ".yml", ".toml", ".json", ".xml", ".csv",
-    ".html", ".htm", ".css", ".scss",
-    ".cfg", ".ini", ".conf", ".env.example",
-    ".dockerfile", ".containerfile",
-    ".gitignore", ".dockerignore",
-    ".editorconfig",
-})
+ALLOWED_TEXT_EXTENSIONS = frozenset(
+    {
+        ".md",
+        ".txt",
+        ".rst",
+        ".adoc",
+        ".asciidoc",
+        ".py",
+        ".js",
+        ".ts",
+        ".go",
+        ".rs",
+        ".java",
+        ".c",
+        ".cpp",
+        ".h",
+        ".rb",
+        ".php",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".json",
+        ".xml",
+        ".csv",
+        ".html",
+        ".htm",
+        ".css",
+        ".scss",
+        ".cfg",
+        ".ini",
+        ".conf",
+        ".env.example",
+        ".dockerfile",
+        ".containerfile",
+        ".gitignore",
+        ".dockerignore",
+        ".editorconfig",
+    }
+)
 
 
 class FetchInput(BaseModel, extra="forbid"):

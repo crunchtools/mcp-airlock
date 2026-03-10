@@ -29,7 +29,7 @@ class TestHtmlSanitization:
         assert stats.hidden_elements == 1
 
     def test_strips_hidden_attribute(self) -> None:
-        html = '<div hidden>hidden</div><p>visible</p>'
+        html = "<div hidden>hidden</div><p>visible</p>"
         _, stats = sanitize_html(html)
         assert stats.hidden_elements == 1
 
@@ -59,18 +59,18 @@ class TestHtmlSanitization:
         assert stats.same_color_text == 1
 
     def test_strips_script_tags(self) -> None:
-        html = '<p>text</p><script>alert(1)</script>'
+        html = "<p>text</p><script>alert(1)</script>"
         markdown, stats = sanitize_html(html)
         assert "alert" not in markdown
         assert stats.script_tags == 1
 
     def test_strips_style_tags(self) -> None:
-        html = '<style>.evil{}</style><p>text</p>'
+        html = "<style>.evil{}</style><p>text</p>"
         _, stats = sanitize_html(html)
         assert stats.style_tags == 1
 
     def test_strips_noscript_tags(self) -> None:
-        html = '<noscript>fallback</noscript><p>text</p>'
+        html = "<noscript>fallback</noscript><p>text</p>"
         _, stats = sanitize_html(html)
         assert stats.noscript_tags == 1
 
@@ -80,19 +80,19 @@ class TestHtmlSanitization:
         assert stats.meta_tags == 2
 
     def test_strips_html_comments(self) -> None:
-        html = '<p>text</p><!-- secret injection -->'
+        html = "<p>text</p><!-- secret injection -->"
         markdown, stats = sanitize_html(html)
         assert "secret" not in markdown
         assert stats.html_comments == 1
 
     def test_converts_to_markdown(self) -> None:
-        html = '<h1>Title</h1><p>Paragraph text.</p>'
+        html = "<h1>Title</h1><p>Paragraph text.</p>"
         markdown, _ = sanitize_html(html)
         assert "Title" in markdown
         assert "Paragraph text." in markdown
 
     def test_clean_html(self) -> None:
-        html = '<p>Just a paragraph.</p>'
+        html = "<p>Just a paragraph.</p>"
         _, stats = sanitize_html(html)
         assert stats.hidden_elements == 0
         assert stats.script_tags == 0

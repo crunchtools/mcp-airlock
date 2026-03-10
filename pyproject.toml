@@ -24,6 +24,9 @@ dependencies = [
     "pydantic>=2.0",
     "beautifulsoup4>=4.12",
     "markdownify>=0.14",
+    "onnxruntime>=1.17",
+    "transformers>=4.40",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -77,7 +80,7 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["markdownify", "bs4"]
+module = ["markdownify", "bs4", "onnxruntime", "transformers"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

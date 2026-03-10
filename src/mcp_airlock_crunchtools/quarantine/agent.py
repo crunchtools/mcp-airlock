@@ -204,13 +204,27 @@ async def quarantine_extract(content: str, prompt: str) -> dict[str, Any]:
     else:
         usage = parsed.pop("_usage", {})
         extracted = parsed.get("extracted_text", "")
+        classifier_output_warning = None
         if extracted:
             result = sanitize_text(extracted)
             parsed["extracted_text"] = result.content[:MAX_EXTRACTED_TEXT]
-        return {
+            # Dual-model verification: classify Q-Agent output
+            from .classifier import classify
+
+            classification = classify(parsed["extracted_text"])
+            if classification and classification.label == "MALICIOUS":
+                classifier_output_warning = (
+                    f"Layer 2 classifier flagged Q-Agent output as MALICIOUS "
+                    f"(score: {classification.score:.3f}). "
+                    "Q-Agent may have been compromised."
+                )
+        response: dict[str, Any] = {
             "content": parsed,
             "usage": usage,
         }
+        if classifier_output_warning:
+            response["classifier_output_warning"] = classifier_output_warning
+        return response
 
 
 async def quarantine_detect(

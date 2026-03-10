@@ -26,36 +26,60 @@ class HtmlStats:
 
 
 _NAMED_COLORS: dict[str, str] = {
-    "white": "#ffffff", "black": "#000000", "red": "#ff0000",
-    "green": "#008000", "blue": "#0000ff", "yellow": "#ffff00",
-    "cyan": "#00ffff", "magenta": "#ff00ff", "gray": "#808080",
-    "grey": "#808080", "silver": "#c0c0c0", "maroon": "#800000",
-    "olive": "#808000", "lime": "#00ff00", "aqua": "#00ffff",
-    "teal": "#008080", "navy": "#000080", "fuchsia": "#ff00ff",
-    "purple": "#800080", "orange": "#ffa500",
+    "white": "#ffffff",
+    "black": "#000000",
+    "red": "#ff0000",
+    "green": "#008000",
+    "blue": "#0000ff",
+    "yellow": "#ffff00",
+    "cyan": "#00ffff",
+    "magenta": "#ff00ff",
+    "gray": "#808080",
+    "grey": "#808080",
+    "silver": "#c0c0c0",
+    "maroon": "#800000",
+    "olive": "#808000",
+    "lime": "#00ff00",
+    "aqua": "#00ffff",
+    "teal": "#008080",
+    "navy": "#000080",
+    "fuchsia": "#ff00ff",
+    "purple": "#800080",
+    "orange": "#ffa500",
 }
 
 _STRIP_TAGS = ("script", "style", "noscript", "meta", "link")
 
 _HIDDEN_STYLE_PATTERNS = (
-    "display:none", "display: none",
-    "visibility:hidden", "visibility: hidden",
-    "opacity:0", "opacity: 0",
+    "display:none",
+    "display: none",
+    "visibility:hidden",
+    "visibility: hidden",
+    "opacity:0",
+    "opacity: 0",
 )
 
 _OFFSCREEN_PATTERNS = (
-    "clip:rect(0", "clip: rect(0",
-    "clip-path:inset(100", "clip-path: inset(100",
-    "font-size:0", "font-size: 0",
+    "clip:rect(0",
+    "clip: rect(0",
+    "clip-path:inset(100",
+    "clip-path: inset(100",
+    "font-size:0",
+    "font-size: 0",
 )
 
 _POSITION_PATTERNS = (
-    "position:absolute", "position: absolute",
-    "position:fixed", "position: fixed",
+    "position:absolute",
+    "position: absolute",
+    "position:fixed",
+    "position: fixed",
 )
 
 _NEGATIVE_OFFSET_PATTERNS = (
-    "left:-", "left: -", "top:-", "top: -",
+    "left:-",
+    "left: -",
+    "top:-",
+    "top: -",
 )
 
 _TAG_STAT_MAP = {
@@ -80,7 +104,7 @@ def _normalize_color(value: str) -> str | None:
 
     hex3 = re.match(r"^#([0-9a-f])([0-9a-f])([0-9a-f])$", val)
     if hex3:
-        return f"#{hex3.group(1)*2}{hex3.group(2)*2}{hex3.group(3)*2}"
+        return f"#{hex3.group(1) * 2}{hex3.group(2) * 2}{hex3.group(3) * 2}"
 
     if re.match(r"^#[0-9a-f]{6}$", val):
         return val
@@ -136,7 +160,9 @@ def _has_same_color_text(tag: Tag) -> bool:
 
     color_match = re.search(r"(?:^|;)\s*color\s*:\s*([^;!]+)", style, re.IGNORECASE)
     bg_match = re.search(
-        r"(?:^|;)\s*background(?:-color)?\s*:\s*([^;!]+)", style, re.IGNORECASE,
+        r"(?:^|;)\s*background(?:-color)?\s*:\s*([^;!]+)",
+        style,
+        re.IGNORECASE,
     )
 
     if color_match and bg_match:

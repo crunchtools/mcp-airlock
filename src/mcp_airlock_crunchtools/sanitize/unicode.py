@@ -18,9 +18,7 @@ class UnicodeStats:
     variation_selectors: int = field(default=0)
 
 
-_INVISIBLE_CHARS = re.compile(
-    "[\u200b\u200c\u200d\u200e\u200f\u2060\u2063\ufeff\u00ad]"
-)
+_INVISIBLE_CHARS = re.compile("[\u200b\u200c\u200d\u200e\u200f\u2060\u2063\ufeff\u00ad]")
 _BIDI_CHARS = re.compile("[\u202a-\u202e\u2066-\u2069]")
 _VARIATION_SELECTORS = re.compile("[\ufe00-\ufe0f]")
 _UNICODE_TAGS = re.compile("[\U000e0001-\U000e007f]")

@@ -16,6 +16,8 @@ DEFAULT_MODEL = "gemini-2.5-flash-lite"
 DEFAULT_FALLBACK = "layer1"
 DEFAULT_MAX_CONTENT = 100_000
 DEFAULT_DB_PATH = "/data/airlock.db"
+DEFAULT_CLASSIFIER_THRESHOLD = 0.9
+DEFAULT_CLASSIFIER_MODEL_PATH = "/models/prompt-guard-2-22m"
 
 
 class Config:
@@ -32,6 +34,13 @@ class Config:
         self.fallback: str = os.environ.get("QUARANTINE_FALLBACK", DEFAULT_FALLBACK)
         self.max_content: int = int(
             os.environ.get("QUARANTINE_MAX_CONTENT", str(DEFAULT_MAX_CONTENT))
+        )
+
+        self.classifier_threshold: float = float(
+            os.environ.get("CLASSIFIER_THRESHOLD", str(DEFAULT_CLASSIFIER_THRESHOLD))
+        )
+        self.classifier_model_path: str = os.environ.get(
+            "CLASSIFIER_MODEL_PATH", DEFAULT_CLASSIFIER_MODEL_PATH
         )
 
         home_db = str(Path.home() / ".local" / "share" / "mcp-airlock" / "airlock.db")
@@ -64,10 +73,7 @@ class Config:
         try:
             parsed = urlparse(url)
             domain = parsed.hostname or ""
-            return any(
-                domain == td or domain.endswith(f".{td}")
-                for td in trusted_domains
-            )
+            return any(domain == td or domain.endswith(f".{td}") for td in trusted_domains)
         except ValueError:
             return False
 

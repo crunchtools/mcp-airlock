@@ -6,9 +6,17 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-_EXFIL_PARAM_NAMES = frozenset({
-    "exfil", "data", "payload", "stolen", "leak", "extract", "dump",
-})
+_EXFIL_PARAM_NAMES = frozenset(
+    {
+        "exfil",
+        "data",
+        "payload",
+        "stolen",
+        "leak",
+        "extract",
+        "dump",
+    }
+)
 
 _MD_IMAGE_PATTERN = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 
@@ -39,11 +47,7 @@ def _is_suspicious_url(url: str) -> bool:
                         return True
 
         if query:
-            param_names = {
-                p.split("=", 1)[0].lower()
-                for p in query.split("&")
-                if "=" in p
-            }
+            param_names = {p.split("=", 1)[0].lower() for p in query.split("&") if "=" in p}
             if param_names & _EXFIL_PARAM_NAMES:
                 return True
 

@@ -25,8 +25,7 @@ class TestDirectiveStripping:
 
     def test_strips_imperative_prefixes(self) -> None:
         text = (
-            "Content here.\nINSTRUCTION: Do something bad."
-            "\nOVERRIDE: Change behavior.\nMore text."
+            "Content here.\nINSTRUCTION: Do something bad.\nOVERRIDE: Change behavior.\nMore text."
         )
         result, stats = sanitize_directives(text)
         assert "INSTRUCTION:" not in result

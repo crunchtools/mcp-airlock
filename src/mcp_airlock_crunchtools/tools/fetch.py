@@ -10,6 +10,7 @@ from ..config import get_config
 from ..database import is_blocked, record_detection
 from ..errors import BlockedSourceError
 from ..quarantine.agent import quarantine_detect, quarantine_extract
+from ..quarantine.classifier import classify
 from ..sanitize.pipeline import PipelineResult, looks_like_html, sanitize, sanitize_text
 
 
@@ -39,6 +40,23 @@ async def safe_fetch(url: str) -> dict[str, Any]:
     pipeline_result = sanitize(content) if looks_like_html(content) else sanitize_text(content)
 
     is_trusted = config.is_trusted_domain(url)
+
+    # Layer 2: Classifier check (after sanitization, before Q-Agent)
+    classification = classify(pipeline_result.content)
+    if classification and classification.label == "MALICIOUS" and not is_trusted:
+        domain = urlparse(url).hostname
+        record_detection(
+            source_type="url",
+            source=url,
+            domain=domain,
+            layer1_stats=pipeline_result.stats.to_flat_dict(),
+            risk_level="high",
+            qagent_assessment={
+                "classifier_label": classification.label,
+                "classifier_score": classification.score,
+            },
+        )
+        raise BlockedSourceError(url, "just detected")
 
     if not is_trusted and config.has_api_key:
         detection = await quarantine_detect(pipeline_result.content)
@@ -101,6 +119,15 @@ async def quarantine_fetch(url: str, prompt: str) -> dict[str, Any]:
 
     is_trusted = config.is_trusted_domain(url)
 
+    # Layer 2: Classifier check (warn + proceed in quarantine mode)
+    classifier_warning = None
+    classification = classify(pipeline_result.content)
+    if classification and classification.label == "MALICIOUS":
+        classifier_warning = (
+            f"Layer 2 classifier flagged content as MALICIOUS "
+            f"(score: {classification.score:.3f}). Proceeding in quarantine mode."
+        )
+
     if is_trusted:
         return {
             "content": {"extracted_text": pipeline_result.content},
@@ -111,11 +138,13 @@ async def quarantine_fetch(url: str, prompt: str) -> dict[str, Any]:
             },
             "sanitization": _build_sanitization_metadata(pipeline_result),
             "blocklist_warning": blocklist_warning,
+            "classifier_warning": classifier_warning,
         }
 
     if not config.has_api_key:
         if config.fallback == "fail":
             from ..errors import ConfigError
+
             raise ConfigError("GEMINI_API_KEY required and QUARANTINE_FALLBACK=fail")
         return {
             "content": {"extracted_text": pipeline_result.content},
@@ -126,9 +155,10 @@ async def quarantine_fetch(url: str, prompt: str) -> dict[str, Any]:
             },
             "sanitization": _build_sanitization_metadata(pipeline_result),
             "blocklist_warning": blocklist_warning,
+            "classifier_warning": classifier_warning,
         }
 
-    truncated = pipeline_result.content[:config.max_content]
+    truncated = pipeline_result.content[: config.max_content]
 
     extraction = await quarantine_extract(truncated, prompt)
 
@@ -143,4 +173,5 @@ async def quarantine_fetch(url: str, prompt: str) -> dict[str, Any]:
         "sanitization": _build_sanitization_metadata(pipeline_result),
         "usage": extraction.get("usage", {}),
         "blocklist_warning": blocklist_warning,
+        "classifier_warning": classifier_warning,
     }

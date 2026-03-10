@@ -6,6 +6,7 @@ from typing import Any
 
 from ..config import get_config
 from ..database import get_blocklist_stats
+from ..quarantine.classifier import is_classifier_available
 
 
 async def get_airlock_stats() -> dict[str, Any]:
@@ -20,6 +21,13 @@ async def get_airlock_stats() -> dict[str, Any]:
             "fallback": config.fallback,
             "max_content": config.max_content,
             "has_api_key": config.has_api_key,
+            "classifier_threshold": config.classifier_threshold,
+            "classifier_model_path": config.classifier_model_path,
+        },
+        "classifier": {
+            "available": is_classifier_available(),
+            "model_path": config.classifier_model_path,
+            "threshold": config.classifier_threshold,
         },
         "blocklist": blocklist,
     }

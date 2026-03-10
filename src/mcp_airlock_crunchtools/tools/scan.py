@@ -7,6 +7,7 @@ from typing import Any
 from ..client import fetch_url
 from ..config import get_config
 from ..quarantine.agent import quarantine_detect
+from ..quarantine.classifier import classify
 from ..sanitize.pipeline import looks_like_html, sanitize, sanitize_text
 from .read import _validate_file
 
@@ -75,6 +76,7 @@ def _build_scan_result(
     qagent_assessment: dict[str, Any] | None,
     has_api_key: bool,
     scan_mode: str = "standard",
+    classifier_result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the scan result dict shared by both scan tools."""
     qagent_risk = "low"
@@ -83,7 +85,11 @@ def _build_scan_result(
         if qagent_assessment.get("injection_detected"):
             qagent_risk = max(qagent_risk, "high", key=_risk_order)
 
-    overall_risk = max(layer1_risk, qagent_risk, key=_risk_order)
+    classifier_risk = "low"
+    if classifier_result and classifier_result.get("label") == "MALICIOUS":
+        classifier_risk = "high"
+
+    overall_risk = max(layer1_risk, classifier_risk, qagent_risk, key=_risk_order)
 
     return {
         "source_type": source_type,
@@ -94,6 +100,11 @@ def _build_scan_result(
             "detections": layer1_detections,
             "risk_level": layer1_risk,
             "stats": layer1_stats,
+        },
+        "layer2": {
+            "available": classifier_result is not None,
+            "result": classifier_result,
+            "risk_level": classifier_risk,
         },
         "qagent": {
             "available": has_api_key,
@@ -128,6 +139,16 @@ async def quarantine_scan(
     layer1_risk = pipeline_result.stats.risk_level()
     layer1_detections = pipeline_result.stats.total_detections()
 
+    # Layer 2: Classifier
+    classifier_result = None
+    classification = classify(pipeline_result.content)
+    if classification:
+        classifier_result = {
+            "label": classification.label,
+            "score": classification.score,
+            "latency_ms": classification.latency_ms,
+        }
+
     qagent_assessment = None
     if config.has_api_key:
         truncated = pipeline_result.content[: config.max_content]
@@ -143,6 +164,7 @@ async def quarantine_scan(
         qagent_assessment=qagent_assessment,
         has_api_key=config.has_api_key,
         scan_mode="standard",
+        classifier_result=classifier_result,
     )
 
 
@@ -175,6 +197,16 @@ async def deep_quarantine_scan(
     layer1_risk = pipeline_result.stats.risk_level()
     layer1_detections = pipeline_result.stats.total_detections()
 
+    # Layer 2: Classifier (deep scan classifies raw content)
+    classifier_result = None
+    classification = classify(content)
+    if classification:
+        classifier_result = {
+            "label": classification.label,
+            "score": classification.score,
+            "latency_ms": classification.latency_ms,
+        }
+
     qagent_assessment = None
     if config.has_api_key:
         truncated = content[: config.max_content]
@@ -190,4 +222,5 @@ async def deep_quarantine_scan(
         qagent_assessment=qagent_assessment,
         has_api_key=config.has_api_key,
         scan_mode="deep",
+        classifier_result=classifier_result,
     )

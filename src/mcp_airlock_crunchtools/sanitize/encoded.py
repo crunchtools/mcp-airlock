@@ -16,9 +16,7 @@ _INSTRUCTION_PATTERN = re.compile(
 
 _BASE64_PATTERN = re.compile(r"[A-Za-z0-9+/]{40,}={0,2}")
 _HEX_PATTERN = re.compile(r"(?:0x|\\x)?([0-9a-f]{2}[\s,;]?){20,}", re.IGNORECASE)
-_DATA_URI_PATTERN = re.compile(
-    r"data:text/[^;]*;base64,([A-Za-z0-9+/=]+)", re.IGNORECASE
-)
+_DATA_URI_PATTERN = re.compile(r"data:text/[^;]*;base64,([A-Za-z0-9+/=]+)", re.IGNORECASE)
 
 MAX_BASE64_DECODE_LENGTH = 500
 BASE64_EXPANSION_RATIO = 1.4
