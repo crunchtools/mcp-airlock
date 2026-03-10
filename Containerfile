@@ -23,10 +23,10 @@
 #     quay.io/crunchtools/mcp-airlock
 
 # ============================================================
-# Stage 1: ONNX model conversion (builder — PyTorch + optimum)
-# Full Python image needed for PyTorch/numpy C libs. Discarded after build.
+# Stage 1: ONNX model conversion (builder — UBI Python, discarded)
+# UBI 10 Python 3.12 provides C libs for PyTorch/numpy.
 # ============================================================
-FROM python:3.12-slim AS model-builder
+FROM registry.access.redhat.com/ubi10/python-312:latest AS model-builder
 
 RUN pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cpu && \
