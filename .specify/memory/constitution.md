@@ -1,7 +1,7 @@
 # mcp-airlock-crunchtools Constitution
 
-> **Version:** 1.0.0
-> **Ratified:** 2026-03-09
+> **Version:** 1.0.1
+> **Ratified:** 2026-03-10
 > **Status:** Active
 > **Inherits:** [crunchtools/constitution](https://github.com/crunchtools/constitution) v1.1.0
 > **Profile:** MCP Server
@@ -103,10 +103,6 @@ The server MUST support all three MCP transports:
 
 Follow [Semantic Versioning 2.0.0](https://semver.org/) strictly.
 
-### 9. AI Code Quality
-
-All code MUST pass Gourmand checks before merge. Zero violations required.
-
 ---
 
 ## II. Technology Stack
@@ -149,7 +145,34 @@ All tests use mocked httpx — no live API calls. Test categories:
 
 ---
 
-## IV. Code Quality Gates
+## IV. Gourmand (AI Slop Detection)
+
+All code MUST pass `gourmand --full .` with **zero violations** before merge. Gourmand is a CI gate in GitHub Actions.
+
+### Configuration
+
+- `gourmand.toml` — Check settings, excluded paths
+- `gourmand-exceptions.toml` — Documented exceptions with justifications
+- `.gourmand-cache/` — Must be in `.gitignore`
+
+### Exception Policy
+
+Exceptions MUST have documented justifications in `gourmand-exceptions.toml`. Acceptable reasons:
+- Standard API patterns (HTTP status codes, pagination params)
+- Test-specific patterns (intentional invalid input)
+- Framework requirements (CLAUDE.md for Claude Code)
+- Security tool patterns (sanitization stage names, threat category labels)
+
+Unacceptable reasons:
+- "The code is special"
+- "The threshold is too strict"
+- Rewording to avoid detection
+
+---
+
+## V. Code Quality Gates
+
+Every code change must pass through these gates in order:
 
 1. **Lint** — `uv run ruff check src tests`
 2. **Type Check** — `uv run mypy src`
@@ -159,7 +182,7 @@ All tests use mocked httpx — no live API calls. Test categories:
 
 ---
 
-## V. Naming Conventions
+## VI. Naming Conventions
 
 | Context | Name |
 |---------|------|
@@ -174,8 +197,39 @@ All tests use mocked httpx — no live API calls. Test categories:
 
 ---
 
-## VI. Ratification History
+## VII. Development Workflow
+
+### Adding a New Tool
+
+1. Add the async function to the appropriate `tools/*.py` file
+2. Export it from `tools/__init__.py`
+3. Import it in `server.py` and register with `@mcp.tool()`
+4. Add mocked tests in `tests/`
+5. Update the tool count in `test_tool_count`
+6. Run all five quality gates
+7. Update CLAUDE.md tool listing
+
+### Adding a New Sanitization Stage
+
+1. Create module in `sanitize/` implementing the stage function
+2. Wire it into the sanitization pipeline in `sanitize/__init__.py`
+3. Add unit tests covering normal input and adversarial vectors
+4. Run all five quality gates
+
+---
+
+## VIII. Governance
+
+### Amendment Process
+
+1. Create a PR with proposed changes to this constitution
+2. Document rationale in PR description
+3. Require maintainer approval
+4. Update version number upon merge
+
+### Ratification History
 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2026-03-09 | Initial constitution |
+| 1.0.1 | 2026-03-10 | Add Sections IV (Gourmand), VII (Development Workflow), VIII (Governance) |
