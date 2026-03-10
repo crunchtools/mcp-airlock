@@ -1,0 +1,86 @@
+# Gourmand exceptions for mcp-airlock-crunchtools
+# Each exception must have a documented justification
+
+[[exceptions]]
+check = "generic_names"
+path = "src/mcp_airlock_crunchtools/sanitize/*.py"
+pattern = "stats"
+justification = "stats is the domain-standard name for sanitization statistics returned by each pipeline stage"
+
+[[exceptions]]
+check = "generic_names"
+path = "src/mcp_airlock_crunchtools/database.py"
+pattern = "query"
+justification = "query() is the standard database accessor function name matching feed-reader and other server patterns"
+
+[[exceptions]]
+check = "generic_names"
+path = "src/mcp_airlock_crunchtools/quarantine/agent.py"
+pattern = "response"
+justification = "response is the standard variable name for httpx HTTP response objects"
+
+[[exceptions]]
+check = "lint_suppression"
+path = "tests/test_models.py"
+pattern = "type: ignore"
+justification = "type: ignore[call-arg] required to test Pydantic extra='forbid' validation with intentionally invalid kwargs"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/encoded.py"
+pattern = "_decode_base64_safe"
+justification = "Error isolation boundary — decoding untrusted base64 requires its own try/except with specific exception types"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/encoded.py"
+pattern = "_decode_hex_safe"
+justification = "Error isolation boundary — decoding untrusted hex requires its own try/except with specific exception types"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/exfiltration.py"
+pattern = "_is_suspicious_url"
+justification = "Predicate function used as filter callback in list comprehension for URL classification"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/html.py"
+pattern = "_is_hidden"
+justification = "Used as function reference in _CHECK_FUNCTIONS dict — extracted per ruff C901 complexity limits"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/html.py"
+pattern = "_is_off_screen"
+justification = "Used as function reference in _CHECK_FUNCTIONS dict — extracted per ruff C901 complexity limits"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/html.py"
+pattern = "_has_same_color_text"
+justification = "Used as function reference in _CHECK_FUNCTIONS dict — extracted per ruff C901 complexity limits"
+
+[[exceptions]]
+check = "single_use_helpers"
+path = "src/mcp_airlock_crunchtools/sanitize/html.py"
+pattern = "_normalize_color"
+justification = "Complex CSS color normalization logic extracted per ruff C901 — handles named colors, hex3, hex6, and rgb()"
+
+[[exceptions]]
+check = "silent_fallbacks"
+path = "src/mcp_airlock_crunchtools/quarantine/agent.py"
+pattern = "quarantine_extract"
+justification = "Intentional fallback controlled by QUARANTINE_FALLBACK config — returns degraded content with confidence=low when Q-Agent unavailable"
+
+[[exceptions]]
+check = "silent_fallbacks"
+path = "src/mcp_airlock_crunchtools/quarantine/agent.py"
+pattern = "quarantine_detect"
+justification = "Detection is best-effort by design — safe default (injection_detected=False) with explanatory summary when Q-Agent unavailable"
+
+[[exceptions]]
+check = "primitive_obsession"
+path = "src/mcp_airlock_crunchtools/sanitize/encoded.py"
+pattern = "500"
+justification = "500 is the literal value in the MAX_BASE64_DECODE_LENGTH constant definition — the literal must exist somewhere"

@@ -1,0 +1,22 @@
+[global]
+excluded_paths = [
+    ".git/**",
+    ".venv/**",
+    ".mypy_cache/**",
+    ".ruff_cache/**",
+    ".pytest_cache/**",
+    ".github/**",
+    "*.egg-info/**",
+    "dist/**",
+    "build/**",
+    "uv.lock",
+]
+
+[checks]
+implicit_state_machine = false
+
+[severity]
+
+[output]
+format = "text"
+color = true
