@@ -1,6 +1,6 @@
 # MCP Airlock CrunchTools Container
 # Three-layer defense: deterministic sanitization + Prompt Guard 2 classifier + quarantined LLM
-# Built on Hummingbird Python image (Red Hat UBI-based) for enterprise security
+# Built entirely on Hummingbird Python images (Red Hat hardened, minimal)
 #
 # Build (requires HF_TOKEN for Llama model download):
 #   source ~/.config/mcp-env/mcp-airlock-build.env
@@ -23,16 +23,16 @@
 #     quay.io/crunchtools/mcp-airlock
 
 # ============================================================
-# Stage 1: ONNX model conversion (builder — UBI, discarded)
-# UBI provides dnf + C libs for PyTorch/numpy ONNX conversion.
+# Stage 1: ONNX model conversion (Hummingbird builder — discarded)
+# Builder variant includes DNF for installing libstdc++ and
+# other native deps needed by PyTorch/numpy ONNX conversion.
 # ============================================================
-FROM registry.access.redhat.com/ubi10/ubi:latest AS model-builder
+FROM quay.io/hummingbird/python:latest-builder AS model-builder
+USER 0
 
-RUN dnf install -y python3.12 python3.12-pip && dnf clean all
-
-RUN python3.12 -m pip install --no-cache-dir \
+RUN pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cpu && \
-    python3.12 -m pip install --no-cache-dir \
+    pip install --no-cache-dir \
     optimum[onnxruntime] \
     transformers \
     sentencepiece
@@ -40,15 +40,15 @@ RUN python3.12 -m pip install --no-cache-dir \
 # Download and convert the official Meta Prompt Guard 2 22M model to ONNX
 # Requires HF_TOKEN to access meta-llama gated model
 ARG HF_TOKEN
-RUN HF_TOKEN="${HF_TOKEN}" python3.12 -m optimum.exporters.onnx \
+RUN HF_TOKEN="${HF_TOKEN}" python -m optimum.exporters.onnx \
       --model meta-llama/Llama-Prompt-Guard-2-22M \
       --task text-classification \
       /models/prompt-guard-2-22m/
 
 # ============================================================
 # Stage 2: Runtime image (ONNX Runtime only — no PyTorch)
-# Hummingbird is Fedora-minimal, missing libstdc++ for C extensions.
-# Copy it from the builder stage to keep the image minimal.
+# Hummingbird Python is minimal — libstdc++ copied from builder
+# to support onnxruntime/numpy C extensions at runtime.
 # ============================================================
 FROM quay.io/hummingbird/python:latest
 
