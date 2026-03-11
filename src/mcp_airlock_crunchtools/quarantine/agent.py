@@ -25,6 +25,7 @@ from .prompts import (
     DETECTION_SYSTEM_PROMPT,
     EXTRACTION_RESPONSE_SCHEMA,
     EXTRACTION_SYSTEM_PROMPT,
+    SEARCH_L0_SYSTEM_PROMPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -261,3 +262,218 @@ async def quarantine_detect(
     else:
         parsed.pop("_usage", None)
         return parsed
+
+
+# ---------------------------------------------------------------------------
+# L0 — Search via Gemini grounding
+# ---------------------------------------------------------------------------
+
+SEARCH_GROUNDING_TOOL: dict[str, Any] = {"google_search": {}}
+
+REDIRECT_TIMEOUT = 5.0
+GROUNDING_REDIRECT_PATTERNS = [
+    "grounding-api-redirect",
+    "vertexaisearch.cloud.google.com",
+]
+
+
+def _enforce_search_quarantine(request_body: dict[str, Any]) -> None:
+    """Enforce L0 search constraints.
+
+    ONLY google_search grounding is permitted. No functionDeclarations,
+    no other tools. This is the ONLY place in airlock where any agent
+    has tool access.
+    """
+    if "functionDeclarations" in request_body:
+        raise QuarantineAgentError(
+            "SECURITY: functionDeclarations in L0 search request"
+        )
+    tools = request_body.get("tools", [])
+    if len(tools) != 1:
+        raise QuarantineAgentError(
+            f"SECURITY: L0 search must have exactly 1 tool, got {len(tools)}"
+        )
+    if "google_search" not in tools[0]:
+        raise QuarantineAgentError(
+            "SECURITY: L0 search tool must be google_search"
+        )
+
+
+def _build_search_request_body(
+    query: str,
+    system_prompt: str,
+    num_results: int = 5,
+) -> dict[str, Any]:
+    """Build a Gemini request with google_search grounding.
+
+    NO structured output (responseMimeType/responseSchema) — incompatible
+    with google_search on Gemini 2.x. L0 returns plain text.
+    """
+    return {
+        "system_instruction": {
+            "parts": [{"text": system_prompt}],
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": (
+                            f"Search the web for: {query}\n\n"
+                            f"Return approximately {num_results} results. "
+                            "For each result, include the page title, a brief "
+                            "factual summary, and the source URL if visible."
+                        )
+                    }
+                ],
+            },
+        ],
+        "tools": [SEARCH_GROUNDING_TOOL],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": MAX_OUTPUT_TOKENS,
+        },
+    }
+
+
+def _extract_grounding_sources(
+    grounding_metadata: dict[str, Any],
+) -> list[dict[str, str]]:
+    """Extract source URLs and titles from groundingMetadata."""
+    chunks = grounding_metadata.get("groundingChunks", [])
+    sources = []
+    for chunk in chunks:
+        web = chunk.get("web", {})
+        uri = web.get("uri", "")
+        title = web.get("title", "")
+        if uri:
+            sources.append({"uri": uri, "title": title})
+    return sources
+
+
+def _extract_grounding_supports(
+    grounding_metadata: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Extract citation supports from groundingMetadata."""
+    supports = grounding_metadata.get("groundingSupports", [])
+    return [
+        {
+            "text": s.get("segment", {}).get("text", ""),
+            "chunk_indices": s.get("groundingChunkIndices", []),
+            "confidence": s.get("confidenceScores", []),
+        }
+        for s in supports
+    ]
+
+
+async def search_grounded(
+    query: str, num_results: int = 5,
+) -> dict[str, Any]:
+    """Run L0: Gemini with google_search grounding.
+
+    Returns synthesized text + grounding metadata. The caller MUST
+    sanitize this output through L1 and L2 before downstream use.
+    """
+    config = get_config()
+
+    if not config.has_api_key:
+        raise QuarantineAgentError("GEMINI_API_KEY not configured")
+
+    canary = _generate_canary()
+    system_prompt = _inject_canary(SEARCH_L0_SYSTEM_PROMPT, canary)
+
+    request_body = _build_search_request_body(
+        query, system_prompt, num_results
+    )
+    _enforce_search_quarantine(request_body)
+
+    api_key = config.api_key.get_secret_value()
+    model = config.model
+    url = f"{GEMINI_API_BASE}/{model}:generateContent?key={api_key}"
+
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(GEMINI_TIMEOUT)
+        ) as http_client:
+            resp = await http_client.post(
+                url, json=request_body,
+                headers={"Content-Type": "application/json"},
+            )
+            resp.raise_for_status()
+            resp_json = resp.json()
+
+            candidates = resp_json.get("candidates", [])
+            if not candidates:
+                raise QuarantineAgentError("No candidates in Gemini response")
+
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if not parts:
+                raise QuarantineAgentError("No parts in Gemini response")
+
+            text = parts[0].get("text", "")
+
+            # Canary check on plain text
+            if canary in text:
+                raise QuarantineAgentError(
+                    "SECURITY: canary leaked in L0 search response"
+                )
+
+            # Extract grounding metadata
+            grounding = candidates[0].get("groundingMetadata", {})
+            sources = _extract_grounding_sources(grounding)
+            supports = _extract_grounding_supports(grounding)
+
+            usage = resp_json.get("usageMetadata", {})
+
+            return {
+                "text": text,
+                "sources": sources,
+                "supports": supports,
+                "usage": {
+                    "input_tokens": usage.get("promptTokenCount", 0),
+                    "output_tokens": usage.get("candidatesTokenCount", 0),
+                },
+            }
+
+    except httpx.HTTPStatusError as exc:
+        raise QuarantineAgentError(f"HTTP {exc.response.status_code}") from exc
+    except httpx.TimeoutException as exc:
+        raise QuarantineAgentError("Request timed out") from exc
+    except httpx.RequestError as exc:
+        raise QuarantineAgentError(str(exc)) from exc
+
+
+async def resolve_grounding_urls(
+    sources: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Resolve grounding redirect URLs to final destinations."""
+    resolved: list[dict[str, str]] = []
+
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(REDIRECT_TIMEOUT),
+        follow_redirects=True,
+        max_redirects=5,
+    ) as client:
+        for source in sources:
+            uri = source.get("uri", "")
+            is_redirect = any(p in uri for p in GROUNDING_REDIRECT_PATTERNS)
+
+            if not is_redirect:
+                resolved.append(source)
+                continue
+
+            try:
+                resp = await client.head(uri)
+                final_url = str(resp.url)
+                resolved.append({
+                    "uri": final_url,
+                    "title": source.get("title", ""),
+                    "original_redirect": uri,
+                })
+            except (httpx.RequestError, httpx.TimeoutException):
+                resolved.append({
+                    **source,
+                    "redirect_failed": "true",
+                })
+
+    return resolved

@@ -14,9 +14,11 @@ from .tools import (
     quarantine_fetch,
     quarantine_read,
     quarantine_scan,
+    quarantine_search,
     safe_content,
     safe_fetch,
     safe_read,
+    safe_search,
     scan_content,
 )
 
@@ -24,12 +26,11 @@ mcp = FastMCP(
     "mcp-airlock-crunchtools",
     version="0.1.0",
     instructions=(
-        "Quarantined web content extraction with two-layer prompt injection defense. "
-        "Layer 1: deterministic sanitization strips hidden HTML, invisible unicode, "
-        "encoded payloads, exfiltration URLs, and LLM delimiters. "
-        "Layer 2: quarantined Gemini Flash-Lite LLM extracts content with NO tool access. "
-        "Use safe_fetch for trusted content (fails on injection), "
-        "quarantine_fetch for untrusted content (warns but proceeds), "
+        "Quarantined web content extraction with three-layer prompt injection defense. "
+        "Layer 1: deterministic sanitization. Layer 2: Prompt Guard 2 classifier. "
+        "Layer 3: quarantined Gemini Q-Agent. "
+        "Use safe_fetch/safe_search for trusted content (fails on injection), "
+        "quarantine_fetch/quarantine_search for untrusted content (warns but proceeds), "
         "quarantine_scan for pre-flight threat assessment."
     ),
 )
@@ -214,6 +215,51 @@ async def deep_scan_content_tool(
         content_type: MIME type — text/plain (default), text/html, or text/markdown
     """
     return await deep_scan_content(content, content_type)
+
+
+@mcp.tool()
+async def safe_search_tool(
+    query: str,
+    num_results: int = 5,
+) -> dict[str, Any]:
+    """Search the web safely. Returns sanitized text + source URLs.
+
+    Pipeline: L0 (Gemini grounding) → resolve redirects → L1 → L2.
+    Fails if L1 or L2 detects injection in L0's output.
+
+    Returns synthesized prose answer + list of source URLs that can be
+    followed up with quarantine_fetch for full content.
+
+    Args:
+        query: Search query string
+        num_results: Approximate number of results (default 5)
+    """
+    return await safe_search(query, num_results)
+
+
+@mcp.tool()
+async def quarantine_search_tool(
+    query: str,
+    prompt: str = "Summarize the search results.",
+    num_results: int = 5,
+) -> dict[str, Any]:
+    """Search the web with full quarantine pipeline.
+
+    Pipeline: L0 (Gemini grounding) → resolve → L1 → L2 → L3 (clean Q-Agent).
+    The clean Q-Agent structures sanitized results with structured JSON output.
+
+    Returns synthesized prose, source URLs, AND structured extraction with
+    per-source summaries and relevance scores.
+
+    IMPORTANT: If `classifier_warning` is present, L0's output was flagged as
+    potentially compromised by poisoned web content.
+
+    Args:
+        query: Search query string
+        prompt: Extraction instruction for L3 (clean Q-Agent)
+        num_results: Approximate number of results (default 5)
+    """
+    return await quarantine_search(query, prompt, num_results)
 
 
 @mcp.tool()
