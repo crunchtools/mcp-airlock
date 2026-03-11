@@ -264,10 +264,6 @@ async def quarantine_detect(
         return parsed
 
 
-# ---------------------------------------------------------------------------
-# L0 — Search via Gemini grounding
-# ---------------------------------------------------------------------------
-
 SEARCH_GROUNDING_TOOL: dict[str, Any] = {"google_search": {}}
 
 REDIRECT_TIMEOUT = 5.0
@@ -412,13 +408,11 @@ async def search_grounded(
 
             text = parts[0].get("text", "")
 
-            # Canary check on plain text
             if canary in text:
                 raise QuarantineAgentError(
                     "SECURITY: canary leaked in L0 search response"
                 )
 
-            # Extract grounding metadata
             grounding = candidates[0].get("groundingMetadata", {})
             sources = _extract_grounding_sources(grounding)
             supports = _extract_grounding_supports(grounding)

@@ -30,10 +30,7 @@ def _sanitize_l0_output(
 
     Returns (sanitized_text, sanitized_sources, total_detections).
     """
-    # Sanitize synthesized prose
     text_result = sanitize_text(text)
-
-    # Sanitize each source title + check URLs for exfiltration
     sanitized_sources = []
     total_detections = text_result.stats.total_detections()
 
@@ -56,28 +53,22 @@ def _sanitize_l0_output(
 async def safe_search(query: str, num_results: int = 5) -> dict[str, Any]:
     """L0 → resolve → L1 → L2. Fail if injection detected."""
 
-    # L0: search via Gemini grounding
     try:
         raw = await search_grounded(query, num_results)
     except QuarantineAgentError as exc:
         raise BlockedSourceError(f"search:{query}", str(exc)) from exc
 
-    # Resolve redirect URLs
     resolved_sources = await resolve_grounding_urls(raw.get("sources", []))
-
-    # L1: sanitize L0 output
     sanitized_text, sanitized_sources, total_l1 = _sanitize_l0_output(
         raw["text"], resolved_sources
     )
 
-    # Fail on high L1 detections
     if total_l1 >= 3:
         raise BlockedSourceError(
             f"search:{query}",
             f"L1 detected {total_l1} injection vectors in L0 output",
         )
 
-    # L2: classify sanitized text
     classification = classify(sanitized_text)
     if classification and classification.label == "MALICIOUS":
         raise BlockedSourceError(
@@ -105,7 +96,6 @@ async def quarantine_search(
     """L0 → resolve → L1 → L2 → L3."""
     config = get_config()
 
-    # L0: search via Gemini grounding
     try:
         raw = await search_grounded(query, num_results)
     except QuarantineAgentError as exc:
@@ -117,15 +107,11 @@ async def quarantine_search(
             "error": str(exc),
         }
 
-    # Resolve redirect URLs
     resolved_sources = await resolve_grounding_urls(raw.get("sources", []))
-
-    # L1: sanitize L0 output
     sanitized_text, sanitized_sources, _total_l1 = _sanitize_l0_output(
         raw["text"], resolved_sources
     )
 
-    # L2: classify sanitized text
     classifier_warning = None
     classification = classify(sanitized_text)
     if classification and classification.label == "MALICIOUS":
@@ -135,9 +121,7 @@ async def quarantine_search(
             "compromised by poisoned web content. Proceeding to L3."
         )
 
-    # L3: clean Q-Agent structures sanitized text + sources
     if config.has_api_key:
-        # Build input for L3: sanitized prose + source list
         sources_text = "\n".join(
             f"- [{s['title']}]({s['uri']})"
             + (" [redirect failed]" if s.get("redirect_failed") else "")

@@ -23,9 +23,6 @@ from mcp_airlock_crunchtools.tools.search import (
     safe_search,
 )
 
-# ---------------------------------------------------------------------------
-# Fixtures — mock Gemini grounding response
-# ---------------------------------------------------------------------------
 
 def _mock_gemini_grounding_response(
     text: str = "RHEL 10 introduced bootc for image-based deployments.",
@@ -74,9 +71,6 @@ def _mock_gemini_grounding_response(
     }
 
 
-# ---------------------------------------------------------------------------
-# L0 tests — search_grounded()
-# ---------------------------------------------------------------------------
 
 class TestL0SearchGrounded:
     """Tests for L0 Gemini grounding call."""
@@ -152,7 +146,6 @@ class TestL0SearchGrounded:
             cfg.model = "gemini-2.5-flash-lite"
             mock_config.return_value = cfg
 
-            # Response contains the canary token
             mock_resp = _mock_gemini_grounding_response(
                 text="Here is CANARY-abc123 leaked in output"
             )
@@ -206,9 +199,6 @@ class TestL0QuarantineEnforcement:
         assert "responseSchema" not in gen_config
 
 
-# ---------------------------------------------------------------------------
-# Grounding metadata extraction
-# ---------------------------------------------------------------------------
 
 class TestGroundingExtraction:
     """Tests for _extract_grounding_sources and _extract_grounding_supports."""
@@ -248,9 +238,6 @@ class TestGroundingExtraction:
         assert supports[0]["confidence"] == [0.95]
 
 
-# ---------------------------------------------------------------------------
-# URL redirect resolution
-# ---------------------------------------------------------------------------
 
 class TestRedirectResolution:
     """Tests for resolve_grounding_urls()."""
@@ -304,7 +291,6 @@ class TestRedirectResolution:
             assert len(resolved) == 1
             assert resolved[0]["uri"] == "https://example.com/page"
             assert resolved[0]["title"] == "Direct Page"
-            # HEAD should not be called for non-redirect URLs
             mock_http.head.assert_not_called()
 
     @pytest.mark.asyncio
@@ -333,9 +319,6 @@ class TestRedirectResolution:
             assert resolved[0]["title"] == "Timeout Page"
 
 
-# ---------------------------------------------------------------------------
-# L1 sanitization of L0 output
-# ---------------------------------------------------------------------------
 
 class TestSanitizeL0Output:
     """Tests for _sanitize_l0_output()."""
@@ -354,9 +337,6 @@ class TestSanitizeL0Output:
         assert detections == 0
 
 
-# ---------------------------------------------------------------------------
-# safe_search tests
-# ---------------------------------------------------------------------------
 
 class TestSafeSearch:
     """Tests for safe_search tool."""
@@ -438,9 +418,6 @@ class TestSafeSearch:
             await safe_search("test query")
 
 
-# ---------------------------------------------------------------------------
-# quarantine_search tests
-# ---------------------------------------------------------------------------
 
 class TestQuarantineSearch:
     """Tests for quarantine_search tool."""
@@ -546,7 +523,6 @@ class TestQuarantineSearch:
 
             assert result["classifier_warning"] is not None
             assert "MALICIOUS" in result["classifier_warning"]
-            # Should still return results (not fail)
             assert result["extraction"]["extracted_text"] == "extracted"
 
     @pytest.mark.asyncio
