@@ -1,3 +1,4 @@
+# TEST: Verify Gemini Code Assist styleguide pickup
 """MCP server registration for mcp-airlock-crunchtools."""
 
 from __future__ import annotations
