@@ -132,15 +132,15 @@ EDGE_CASE_BENIGN = [
     pytest.param(
         "A Reddit user posted about the DAN jailbreak technique and how it bypasses "
         "safety training in large language models. The thread received 500 upvotes.",
-        True,
-        id="reddit-dan-discussion-FP",
+        False,
+        id="reddit-dan-discussion",
     ),
     pytest.param(
         "This paper analyzes AI safety mechanisms including RLHF, constitutional AI, "
         "and prompt injection defenses. We evaluate their effectiveness against "
         "adversarial attacks on language models.",
-        True,
-        id="ai-safety-paper-FP",
+        False,
+        id="ai-safety-paper",
     ),
     pytest.param(
         "CVE-2025-32711: Zero-click prompt injection vulnerability in Microsoft 365 "
