@@ -73,7 +73,7 @@ jobs:
             -e GEMINI_API_KEY="test_key_for_ci" \
             -e CLASSIFIER_MODEL_PATH="/models/prompt-guard-2-22m" \
             mcp-airlock:test \
-            sh -c "pip install --no-cache-dir pytest pytest-asyncio && pytest /tests/test_l2_integration.py -v"
+            sh -c "pip install --no-cache-dir pytest pytest-asyncio && python -m pytest /tests/test_l2_integration.py -v"
 
       - name: Run L3 integration tests in container
         if: env.HAS_GEMINI_KEY == 'true'
@@ -84,7 +84,7 @@ jobs:
             -e GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             -e CLASSIFIER_MODEL_PATH="/models/prompt-guard-2-22m" \
             mcp-airlock:test \
-            sh -c "pip install --no-cache-dir pytest pytest-asyncio && pytest /tests/test_l3_integration.py -v"
+            sh -c "pip install --no-cache-dir pytest pytest-asyncio && python -m pytest /tests/test_l3_integration.py -v"
 
   validate-constitution:
     name: Constitution Validation
