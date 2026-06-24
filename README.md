@@ -50,6 +50,10 @@ Proxy LLM API calls (Gemini, OpenAI, Anthropic) through the gateway so API keys 
 
 Proxy Matrix Client-Server API traffic through the gateway so agents on the internal network can communicate via Matrix without direct internet access. Agents point `MATRIX_HOMESERVER` at Trentina instead of matrix.org. Long-poll `/sync` timeouts are tuned automatically.
 
+### [Cockpit Plugin](docs/cockpit-plugin.md)
+
+Live web dashboard for the defense pipeline, built as a Cockpit plugin with PatternFly 6. Shows layer status, blocklist entries, and pipeline events in real time through the same web console sysadmins already use to manage RHEL systems. Vanilla JavaScript, no React, no build step.
+
 ## Quick Start
 
 ```bash
@@ -108,6 +112,7 @@ export TRENTINA_PROFILE_MYAGENT_TOKEN=your-token
 | [Quarantine Tools](docs/quarantine-tools.md) | Web fetch, read, search, scan |
 | [LLM Key Proxying](docs/llm-proxying.md) | API key isolation via reverse proxy |
 | [Matrix Reverse Proxy](docs/network-isolation.md) | Agent communication via Matrix |
+| [Cockpit Plugin](docs/cockpit-plugin.md) | Live defense pipeline dashboard |
 | [Internal: Gateway Design](docs/internal/gateway-design.md) | Original design document for contributors |
 
 ## Development
